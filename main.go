@@ -15,8 +15,10 @@ func main() {
 	}
 
 	// Register the HTTP handlers
+	http.HandleFunc("/api/namespaces", handlers.NamespacesHandler(clientset))
 	http.HandleFunc("/api/roles", handlers.RolesHandler(clientset))
 	http.HandleFunc("/api/roles/details", handlers.RoleDetailsHandler(clientset))
+	http.HandleFunc("/api/roles/compare", handlers.CompareRolesHandler(clientset))
 	http.HandleFunc("/api/clusterroles", handlers.ClusterRolesHandler(clientset))
 	http.HandleFunc("/api/rolebindings", handlers.RoleBindingsHandler(clientset))
 	http.HandleFunc("/api/clusterrolebindings", handlers.ClusterRoleBindingsHandler(clientset))
