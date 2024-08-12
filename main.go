@@ -2,9 +2,8 @@ package main
 
 import (
 	"log"
-	"net/http"
-	"rbac/handlers"
-	"rbac/kubernetes"
+	"rbac/pkg/kubernetes"
+	"rbac/pkg/server"
 )
 
 func main() {
@@ -14,16 +13,11 @@ func main() {
 		log.Fatalf("Failed to initialize Kubernetes client: %v", err)
 	}
 
-	// Register the HTTP handlers
-	http.HandleFunc("/api/namespaces", handlers.NamespacesHandler(clientset))
-	http.HandleFunc("/api/roles", handlers.RolesHandler(clientset))
-	http.HandleFunc("/api/roles/details", handlers.RoleDetailsHandler(clientset))
-	http.HandleFunc("/api/roles/compare", handlers.CompareRolesHandler(clientset))
-	http.HandleFunc("/api/clusterroles", handlers.ClusterRolesHandler(clientset))
-	http.HandleFunc("/api/rolebindings", handlers.RoleBindingsHandler(clientset))
-	http.HandleFunc("/api/clusterrolebindings", handlers.ClusterRoleBindingsHandler(clientset))
+	// Initialize the server
+	srv := server.NewServer(clientset)
 
-	// Start the server
-	log.Println("Server running on port 8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Println("Starting server on :8080")
+	if err := srv.ListenAndServe(); err != nil {
+		log.Fatalf("Server failed to start: %v", err)
+	}
 }
