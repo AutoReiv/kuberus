@@ -19,6 +19,8 @@ func ClusterRolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 			listClusterRoles(w, clientset)
 		case http.MethodPost:
 			createClusterRole(w, r, clientset)
+		case http.MethodDelete:
+			deleteClusterRole(w, clientset, r.URL.Query().Get("name"))
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -53,4 +55,15 @@ func createClusterRole(w http.ResponseWriter, r *http.Request, clientset *kubern
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(createdClusterRole)
+}
+
+// deleteClusterRole deletes a cluster role
+func deleteClusterRole(w http.ResponseWriter, clientset *kubernetes.Clientset, name string) {
+	err := clientset.RbacV1().ClusterRoles().Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		http.Error(w, "Failed to delete cluster role: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

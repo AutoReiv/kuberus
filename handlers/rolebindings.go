@@ -23,6 +23,8 @@ func RoleBindingsHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 			listRoleBindings(w, clientset, namespace)
 		case http.MethodPost:
 			createRoleBindings(w, r, clientset, namespace)
+		case http.MethodDelete:
+			deleteRoleBinding(w, clientset, namespace, r.URL.Query().Get("name"))
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -58,3 +60,13 @@ func createRoleBindings(w http.ResponseWriter, r *http.Request, clientset *kuber
 	json.NewEncoder(w).Encode(createdRoleBinding)
 }
 
+// deleteRoleBinding deletes a role binding in the specified namespace
+func deleteRoleBinding(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace, name string) {
+	err := clientset.RbacV1().RoleBindings(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		http.Error(w, "Failed to delete role binding: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

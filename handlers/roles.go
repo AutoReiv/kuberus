@@ -15,7 +15,7 @@ func RolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		namespace := r.URL.Query().Get("namespace")
 		if namespace == "" {
-			namespace = "default" // Default to "default" namespace
+			namespace = "default"
 		}
 
 		switch r.Method {
@@ -23,6 +23,8 @@ func RolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 			listRoles(w, clientset, namespace)
 		case http.MethodPost:
 			createRole(w, r, clientset, namespace)
+		case http.MethodDelete:
+			deleteRole(w, clientset, namespace, r.URL.Query().Get("name"))
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -56,4 +58,13 @@ func createRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Cl
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(createdRole)
+}
+
+// deleteRole deletes the role with the specified name in the specified namespace
+func deleteRole(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace, name string) {
+	if err := clientset.RbacV1().Roles(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
+		http.Error(w, "Failed to delete role: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
