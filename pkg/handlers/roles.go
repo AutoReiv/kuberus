@@ -38,7 +38,14 @@ func RolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 
 // listRoles lists all roles in the specified namespace
 func listRoles(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace string) {
-	roles, err := clientset.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
+	var roles *rbacv1.RoleList
+	var err error
+
+	if namespace == "all" {
+		roles, err = clientset.RbacV1().Roles("").List(context.Background(), metav1.ListOptions{})
+	} else {
+		roles, err = clientset.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
+	}
 	if err != nil {
 		handleError(w, err, http.StatusInternalServerError)
 		return
