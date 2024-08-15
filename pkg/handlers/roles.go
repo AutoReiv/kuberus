@@ -1,12 +1,15 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -23,6 +26,8 @@ func RolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 			listRoles(w, clientset, namespace)
 		case http.MethodPost:
 			createRole(w, r, clientset, namespace)
+		case http.MethodPut:
+			editRole(w, r, clientset, namespace)
 		case http.MethodDelete:
 			deleteRole(w, clientset, namespace, r.URL.Query().Get("name"))
 		default:
@@ -33,38 +38,95 @@ func RolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 
 // listRoles lists all roles in the specified namespace
 func listRoles(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace string) {
-	roles, err := clientset.RbacV1().Roles(namespace).List(context.TODO(), metav1.ListOptions{})
+	roles, err := clientset.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(w, err, http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(roles.Items)
+	respondWithJSON(w, roles.Items)
 }
 
 // createRole creates a new role in the specified namespace
 func createRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset, namespace string) {
-	var role rbacv1.Role
-	if err := json.NewDecoder(r.Body).Decode(&role); err != nil {
-		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	createdRole, err := clientset.RbacV1().Roles(namespace).Create(context.TODO(), &role, metav1.CreateOptions{})
+	// Read the YAML payload from the request body
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Failed to create role: "+err.Error(), http.StatusInternalServerError)
+		handleError(w, err, http.StatusBadRequest)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(createdRole)
+	// Validate the YAML payload
+	if err := validateKubernetesYAML(body); err != nil {
+		handleError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	// Decode the validated YAML into a Role object
+	var role rbacv1.Role
+	if err := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(body), 100).Decode(&role); err != nil {
+		handleError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	// Create the role
+	createdRole, err := clientset.RbacV1().Roles(namespace).Create(context.Background(), &role, metav1.CreateOptions{})
+	if err != nil {
+		handleError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	respondWithJSON(w, createdRole)
+}
+
+// editRole edits the role with the specified name in the specified namespace
+func editRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset, namespace string) {
+	// Read the YAML payload from the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		handleError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	// Validate the YAML payload
+	if err := validateKubernetesYAML(body); err != nil {
+		handleError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	// Decode the validated YAML into a Role object
+	var role rbacv1.Role
+	if err := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(body), 100).Decode(&role); err != nil {
+		handleError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	// Edit the role
+	editedRole, err := clientset.RbacV1().Roles(namespace).Update(context.Background(), &role, metav1.UpdateOptions{})
+	if err != nil {
+		handleError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	respondWithJSON(w, editedRole)
 }
 
 // deleteRole deletes the role with the specified name in the specified namespace
 func deleteRole(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace, name string) {
-	if err := clientset.RbacV1().Roles(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
-		http.Error(w, "Failed to delete role: "+err.Error(), http.StatusInternalServerError)
+	err := clientset.RbacV1().Roles(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil {
+		handleError(w, err, http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleError sends an HTTP error response with the given error message and status code
+func handleError(w http.ResponseWriter, err error, statusCode int) {
+	http.Error(w, err.Error(), statusCode)
+}
+
+// respondWithJSON sends an HTTP response with the given data encoded as JSON
+func respondWithJSON(w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(data)
 }
