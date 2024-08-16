@@ -8,7 +8,6 @@ import (
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -64,12 +63,9 @@ func createRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Cl
 
 	// Attempt to unmarshal the body as YAML
 	var role rbacv1.Role
-	if err := yaml.Unmarshal(body, &role); err != nil {
-		// If YAML unmarshalling fails, attempt to unmarshal as JSON
-		if err := json.Unmarshal(body, &role); err != nil {
-			http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
-			return
-		}
+	if err := json.Unmarshal(body, &role); err != nil {
+		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	// Create the role in the specified namespace
@@ -95,12 +91,9 @@ func editRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clie
 
 	// Attempt to unmarshal the body as YAML
 	var role rbacv1.Role
-	if err := yaml.Unmarshal(body, &role); err != nil {
-		// If YAML unmarshalling fails, attempt to unmarshal as JSON
-		if err := json.Unmarshal(body, &role); err != nil {
-			http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
-			return
-		}
+	if err := json.Unmarshal(body, &role); err != nil {
+		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	// Update the role in the specified namespace
