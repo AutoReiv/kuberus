@@ -41,6 +41,7 @@ func listRoles(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace
 	var roles *rbacv1.RoleList
 	var err error
 
+	// List all roles in the specified namespace
 	if namespace == "all" {
 		roles, err = clientset.RbacV1().Roles("").List(context.Background(), metav1.ListOptions{})
 	} else {

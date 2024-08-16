@@ -12,6 +12,7 @@ func NewServer(clientset *kubernetes.Clientset) *http.Server {
 	mux := http.NewServeMux()
 
 	// Register the HTTP handlers
+	mux.HandleFunc("/api/namespaces", handlers.NamespacesHandler(clientset))
 	mux.HandleFunc("/api/roles", handlers.RolesHandler(clientset))
 	mux.HandleFunc("/api/roles/details", handlers.RoleDetailsHandler(clientset))
 	mux.HandleFunc("/api/roles/compare", handlers.CompareRolesHandler(clientset))
