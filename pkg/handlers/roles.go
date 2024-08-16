@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -56,66 +55,64 @@ func listRoles(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace
 
 // createRole creates a new role in the specified namespace
 func createRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset, namespace string) {
-	// Read the YAML payload from the request body
+	// Read the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		handleError(w, err, http.StatusBadRequest)
+		http.Error(w, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Validate the YAML payload
-	if err := validateKubernetesYAML(body); err != nil {
-		handleError(w, err, http.StatusBadRequest)
-		return
-	}
-
-	// Decode the validated YAML into a Role object
+	// Attempt to unmarshal the body as YAML
 	var role rbacv1.Role
-	if err := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(body), 100).Decode(&role); err != nil {
-		handleError(w, err, http.StatusBadRequest)
-		return
+	if err := yaml.Unmarshal(body, &role); err != nil {
+		// If YAML unmarshalling fails, attempt to unmarshal as JSON
+		if err := json.Unmarshal(body, &role); err != nil {
+			http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
-	// Create the role
-	createdRole, err := clientset.RbacV1().Roles(namespace).Create(context.Background(), &role, metav1.CreateOptions{})
+	// Create the role in the specified namespace
+	createdRole, err := clientset.RbacV1().Roles(namespace).Create(context.TODO(), &role, metav1.CreateOptions{})
 	if err != nil {
-		handleError(w, err, http.StatusInternalServerError)
+		http.Error(w, "Failed to create role: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	respondWithJSON(w, createdRole)
+	// Respond with the created role
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(createdRole)
 }
 
 // editRole edits the role with the specified name in the specified namespace
 func editRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset, namespace string) {
-	// Read the YAML payload from the request body
+	// Read the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		handleError(w, err, http.StatusBadRequest)
+		http.Error(w, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Validate the YAML payload
-	if err := validateKubernetesYAML(body); err != nil {
-		handleError(w, err, http.StatusBadRequest)
-		return
-	}
-
-	// Decode the validated YAML into a Role object
+	// Attempt to unmarshal the body as YAML
 	var role rbacv1.Role
-	if err := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(body), 100).Decode(&role); err != nil {
-		handleError(w, err, http.StatusBadRequest)
-		return
+	if err := yaml.Unmarshal(body, &role); err != nil {
+		// If YAML unmarshalling fails, attempt to unmarshal as JSON
+		if err := json.Unmarshal(body, &role); err != nil {
+			http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
-	// Edit the role
-	editedRole, err := clientset.RbacV1().Roles(namespace).Update(context.Background(), &role, metav1.UpdateOptions{})
+	// Update the role in the specified namespace
+	updatedRole, err := clientset.RbacV1().Roles(namespace).Update(context.TODO(), &role, metav1.UpdateOptions{})
 	if err != nil {
-		handleError(w, err, http.StatusInternalServerError)
+		http.Error(w, "Failed to update role: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	respondWithJSON(w, editedRole)
+	// Respond with the updated role
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updatedRole)
 }
 
 // deleteRole deletes the role with the specified name in the specified namespace
