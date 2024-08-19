@@ -21,7 +21,11 @@ func RolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 
 		switch r.Method {
 		case http.MethodGet:
-			listRoles(w, clientset, namespace)
+			if namespace == "all" {
+				listRolesAllNamespaces(w, clientset)
+			} else {
+				listRoles(w, clientset, namespace)
+			}
 		case http.MethodPost:
 			createRole(w, r, clientset, namespace)
 		case http.MethodPut:
@@ -37,6 +41,19 @@ func RolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 // listRoles lists all roles in the specified namespace
 func listRoles(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace string) {
 	roles, err := clientset.RbacV1().Roles(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(roles); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func listRolesAllNamespaces(w http.ResponseWriter, clientset *kubernetes.Clientset) {
+	roles, err := clientset.RbacV1().Roles("").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
