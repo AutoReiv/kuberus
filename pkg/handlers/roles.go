@@ -36,20 +36,16 @@ func RolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 
 // listRoles lists all roles in the specified namespace
 func listRoles(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace string) {
-	var roles *rbacv1.RoleList
-	var err error
-
-	// List all roles in the specified namespace
-	if namespace == "all" {
-		roles, err = clientset.RbacV1().Roles("").List(context.Background(), metav1.ListOptions{})
-	} else {
-		roles, err = clientset.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
-	}
+	roles, err := clientset.RbacV1().Roles(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		handleError(w, err, http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	respondWithJSON(w, roles.Items)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(roles); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 // createRole creates a new role in the specified namespace
@@ -121,10 +117,4 @@ func deleteRole(w http.ResponseWriter, clientset *kubernetes.Clientset, namespac
 // handleError sends an HTTP error response with the given error message and status code
 func handleError(w http.ResponseWriter, err error, statusCode int) {
 	http.Error(w, err.Error(), statusCode)
-}
-
-// respondWithJSON sends an HTTP response with the given data encoded as JSON
-func respondWithJSON(w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
 }
