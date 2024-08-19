@@ -74,7 +74,13 @@ func createRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Cl
 		return
 	}
 
-	// Attempt to unmarshal the body as YAML
+	// Validate the YAML content
+	if err := validateKubernetesYAML(body); err != nil {
+		http.Error(w, "Invalid YAML content: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Unmarshal the JSON body into a Role object
 	var role rbacv1.Role
 	if err := json.Unmarshal(body, &role); err != nil {
 		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
@@ -102,7 +108,13 @@ func editRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clie
 		return
 	}
 
-	// Attempt to unmarshal the body as YAML
+	// Validate the YAML content
+	if err := validateKubernetesYAML(body); err != nil {
+		http.Error(w, "Invalid YAML content: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Unmarshal the JSON body into a Role object
 	var role rbacv1.Role
 	if err := json.Unmarshal(body, &role); err != nil {
 		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)

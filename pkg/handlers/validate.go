@@ -36,5 +36,6 @@ func validateKubernetesYAML(yamlContent []byte) error {
 		return fmt.Errorf("failed to encode object: %v", err)
 	}
 
+	// Return nil if the YAML content is valid
 	return nil
 }
