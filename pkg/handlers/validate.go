@@ -1,41 +1,39 @@
 package handlers
 
 import (
-	"bytes"
+	"encoding/json"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
-// validateKubernetesYAML validates the YAML content for any Kubernetes resource
-func validateKubernetesYAML(yamlContent []byte) error {
-	// Create a YAML decoder
-	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(yamlContent), 100)
-
-	// Create a runtime.Scheme and a codec factory
-	s := runtime.NewScheme()
-	codecs := serializer.NewCodecFactory(s)
-
-	// Add the Kubernetes API types to the scheme
-	if err := scheme.AddToScheme(s); err != nil {
-		return fmt.Errorf("failed to add Kubernetes API types to scheme: %v", err)
+// ValidateRoleJSON validates the JSON content and converts it to a Kubernetes Role object
+func ValidateRoleJSON(body []byte) (*rbacv1.Role, error) {
+	// Validate JSON content
+	var jsonBody map[string]interface{}
+	if err := json.Unmarshal(body, &jsonBody); err != nil {
+		return nil, fmt.Errorf("invalid JSON content: %v", err)
 	}
 
-	// Decode the YAML content into a runtime.Object
-	var obj runtime.Object
-	if err := decoder.Decode(&obj); err != nil {
-		return fmt.Errorf("failed to decode YAML: %v", err)
+	// Convert JSON to Kubernetes object
+	decoder := serializer.NewCodecFactory(scheme.Scheme).UniversalDeserializer()
+	obj, _, err := decoder.Decode(body, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("invalid Kubernetes object: %v", err)
 	}
 
-	// Encode the object back to JSON to ensure it's valid
-	encoder := codecs.LegacyCodec(scheme.Scheme.PrioritizedVersionsAllGroups()...)
-	if _, err := runtime.Encode(encoder, obj); err != nil {
-		return fmt.Errorf("failed to encode object: %v", err)
+	// Assuming the object is a Role, validate it
+	role, ok := obj.(*rbacv1.Role)
+	if !ok {
+		return nil, fmt.Errorf("invalid Role object")
 	}
 
-	// Return nil if the YAML content is valid
-	return nil
+	// Additional field validation
+	if role.Name == "" || role.Namespace == "" {
+		return nil, fmt.Errorf("role must have a name and namespace")
+	}
+
+	return role, nil
 }

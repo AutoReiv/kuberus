@@ -6,12 +6,8 @@ import (
 	"io"
 	"net/http"
 
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 )
 
 // RolesHandler returns an HTTP handler for managing roles
@@ -77,43 +73,10 @@ func createRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Cl
 		return
 	}
 
-	// Validate JSON content
-	var jsonBody map[string]interface{}
-	if err := json.Unmarshal(body, &jsonBody); err != nil {
-		http.Error(w, "Invalid JSON content: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Convert JSON to Kubernetes object
-	decoder := serializer.NewCodecFactory(scheme.Scheme).UniversalDeserializer()
-	obj, _, err := decoder.Decode(body, nil, nil)
+	// Validate the role JSON
+	role, err := ValidateRoleJSON(body)
 	if err != nil {
-		http.Error(w, "Invalid Kubernetes object: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Validate the Kubernetes object using the client
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		http.Error(w, "Failed to get Kubernetes config: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	clientset, err = kubernetes.NewForConfig(config)
-	if err != nil {
-		http.Error(w, "Failed to create Kubernetes client: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Assuming the object is a Role, validate it
-	role, ok := obj.(*rbacv1.Role)
-	if !ok {
-		http.Error(w, "Invalid Role object", http.StatusBadRequest)
-		return
-	}
-
-	// Validate the role (this is a placeholder, actual validation logic may vary)
-	if role.Name == "" || role.Namespace == "" {
-		http.Error(w, "Role must have a name and namespace", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -138,16 +101,10 @@ func editRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clie
 		return
 	}
 
-	// Validate the YAML content
-	if err := validateKubernetesYAML(body); err != nil {
-		http.Error(w, "Invalid YAML content: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Unmarshal the JSON body into a Role object
-	var role rbacv1.Role
-	if err := json.Unmarshal(body, &role); err != nil {
-		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
+	// Validate the role JSON
+	role, err := ValidateRoleJSON(body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
