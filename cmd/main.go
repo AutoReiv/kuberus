@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"rbac/pkg/auth"
 	"rbac/pkg/kubernetes"
 	"rbac/pkg/server"
@@ -17,10 +18,10 @@ func main() {
 
 	// Initialize OIDC
 	oidcConfig := auth.OIDCConfig{
-		ClientID:     "b7Ql1vVr7bP1Tw1b7DQj5eROQwIY6cGG",
-		ClientSecret: "Pdn94ZBVt7RU3eNsFZ25XaxES_w7_4VThC6Dom6U4O7n26YHfgR4OzujFSG22Xl6",
-		IssuerURL:    "https://dev-ooomxzist3l3qxwf.us.auth0.com/",
-		RedirectURL:  "http://localhost:8080/callback",
+		ClientID:     os.Getenv("CLIENT_ID"),
+		ClientSecret: os.Getenv("CLIENT_SECRET"),
+		IssuerURL:    os.Getenv("ISSUER_URL"),
+		RedirectURL:  os.Getenv("REDIRECT_URL"),
 	}
 	if err := auth.InitOIDC(oidcConfig); err != nil {
 		log.Fatalf("Failed to initialize OIDC: %v", err)
