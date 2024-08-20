@@ -81,7 +81,7 @@ func createRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Cl
 	}
 
 	// Create the role in the specified namespace
-	createdRole, err := clientset.RbacV1().Roles(namespace).Create(context.TODO(), &role, metav1.CreateOptions{})
+	createdRole, err := clientset.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
 	if err != nil {
 		http.Error(w, "Failed to create role: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -109,7 +109,7 @@ func editRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clie
 	}
 
 	// Update the role in the specified namespace
-	updatedRole, err := clientset.RbacV1().Roles(namespace).Update(context.TODO(), &role, metav1.UpdateOptions{})
+	updatedRole, err := clientset.RbacV1().Roles(namespace).Update(context.TODO(), role, metav1.UpdateOptions{})
 	if err != nil {
 		http.Error(w, "Failed to update role: "+err.Error(), http.StatusInternalServerError)
 		return
