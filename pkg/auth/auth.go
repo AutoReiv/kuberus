@@ -7,38 +7,22 @@ import (
 	"strings"
 
 	"github.com/coreos/go-oidc"
-	"golang.org/x/oauth2"
 )
 
-type OIDCConfig struct {
-	ClientID     string
-	ClientSecret string
-	IssuerURL    string
-	RedirectURL  string
-}
-
 var verifier *oidc.IDTokenVerifier
-var oauth2Config oauth2.Config
 
-func InitOIDC(config OIDCConfig) error {
-	provider, err := oidc.NewProvider(context.Background(), config.IssuerURL)
+// InitOIDC initializes the OIDC provider and verifier
+func InitOIDC(clientID, issuerURL string) error {
+	provider, err := oidc.NewProvider(context.Background(), issuerURL)
 	if err != nil {
 		return fmt.Errorf("failed to get provider: %v", err)
 	}
 
-	verifier = provider.Verifier(&oidc.Config{ClientID: config.ClientID})
-
-	oauth2Config = oauth2.Config{
-		ClientID:     config.ClientID,
-		ClientSecret: config.ClientSecret,
-		Endpoint:     provider.Endpoint(),
-		RedirectURL:  config.RedirectURL,
-		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
-	}
-
+	verifier = provider.Verifier(&oidc.Config{ClientID: clientID})
 	return nil
 }
 
+// OIDCMiddleware verifies the ID token and extracts claims
 func OIDCMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
@@ -64,8 +48,7 @@ func OIDCMiddleware(next http.Handler) http.Handler {
 		}
 
 		// Add claims to context if needed
-		type contextKey string
-		ctx := context.WithValue(r.Context(), contextKey("email"), claims.Email)
+		ctx := context.WithValue(r.Context(), "email", claims.Email)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
