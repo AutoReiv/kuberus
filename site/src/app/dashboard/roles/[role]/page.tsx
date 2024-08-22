@@ -25,23 +25,23 @@ const initialNodes = [
     position: { x: 100, y: 100 },
   },
 ];
-const initialEdges = [];
+const initialEdges: any = [];
 
 const Role = () => {
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
 
   const onNodesChange = useCallback(
-    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
+    (changes: any) => setNodes((nds) => applyNodeChanges(changes, nds)),
     []
   );
   const onEdgesChange = useCallback(
-    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+    (changes: any) => setEdges((eds: any) => applyEdgeChanges(changes, eds)),
     []
   );
 
   const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge(params, eds)),
+    (params: any) => setEdges((eds: any) => addEdge(params, eds)),
     []
   );
 
