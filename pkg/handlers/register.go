@@ -4,10 +4,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"rbac/pkg/utils"
+	"sync"
 )
 
 // Mock user data store
-var users = map[string]string{}
+var (
+	users       = map[string]string{}
+	adminExists = false
+	mu          sync.Mutex
+)
 
 // RegisterRequest represents the registration request payload.
 type RegisterRequest struct {
@@ -29,6 +34,15 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		mu.Lock()
+		defer mu.Unlock()
+
+		// Check if the admin account already exists
+		if adminExists {
+			http.Error(w, "Registration is closed", http.StatusForbidden)
+			return
+		}
+
 		// Check if the username already exists
 		if _, exists := users[req.Username]; exists {
 			http.Error(w, "Username already exists", http.StatusConflict)
@@ -44,6 +58,9 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Store the user details
 		users[req.Username] = hashedPassword
+
+		// Set the adminExists flag to true
+		adminExists = true
 
 		resp := RegisterResponse{Message: "User registered successfully"}
 		w.WriteHeader(http.StatusOK)
