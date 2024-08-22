@@ -56,7 +56,7 @@ const SideNav = () => {
               <Link
                 key={index}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary ${
-                  path === menu.path && "bg-accent-foreground text-white hover:text-white"
+                  path === menu.path && "bg-accent-foreground text-secondary hover:text-secondary"
                 }`}
 								href={menu.path}
               >

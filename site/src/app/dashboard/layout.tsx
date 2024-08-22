@@ -1,18 +1,17 @@
 "use client";
 import Link from "next/link";
 import {
-  Bell,
   CircleUser,
   Home,
   LineChart,
   Menu,
+  Moon,
   Package,
   Package2,
-  Search,
   ShoppingCart,
+  Sun,
   Users,
 } from "lucide-react";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,15 +29,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import SideNav from "./_components/SideNav";
-import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+
 const Layout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) => {
+  const { setTheme } = useTheme();
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <SideNav />
@@ -135,6 +135,26 @@ const Layout = ({
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                <span className="sr-only">Toggle theme</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setTheme("light")}>
+                Light
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("dark")}>
+                Dark
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("system")}>
+                System
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">
                 <CircleUser className="h-5 w-5" />
                 <span className="sr-only">Toggle user menu</span>
@@ -156,7 +176,7 @@ const Layout = ({
             x-chunk="dashboard-02-chunk-1"
           >
             {/* <div className="flex flex-col items-center gap-1 text-center"> */}
-              {children}
+            {children}
             {/* </div> */}
           </div>
         </main>

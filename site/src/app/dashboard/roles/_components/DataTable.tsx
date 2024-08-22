@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import YamlEditor from "@focus-reactive/react-yaml";
 
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -49,31 +48,40 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  getPaginationRowModel,
+  SortingState,
+  getSortedRowModel,
+  ColumnFiltersState,
+  getFilteredRowModel,
+} from "@tanstack/react-table";
 
-import { z } from "zod";
+import { object, z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { create } from "zustand";
-import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { ColumnDef } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
+import { Role } from "../../_interfaces/role";
+import { format } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
 
-const useStore = create((set: any) => ({
-  namespaces: [],
-  setNamespaces: (namespace) =>
-    set(() => {
-      namespace;
-    }),
-}));
+export default function DataTable({ roles, namespace }) {
+  const [data, setData] = useState(roles);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [rowSelection, setRowSelection] = useState({});
 
-export default function DataTable({ roles }) {
+  const router = useRouter();
   const yaml = require("js-yaml");
   const yamlText = `
 apiVersion: rbac.authorization.k8s.io/v1
@@ -92,32 +100,14 @@ rules:
     - list
 `;
   const [formText, setformText] = useState(yamlText);
-  const [rolesArray, setRolesArray] = useState(roles);
-  const router = useRouter();
+
+  useEffect(() => {
+    setData(roles); // Update local state if props change
+  }, [roles]);
 
   const handleChange = ({ text }) => {
     setformText(text);
   };
-
-  const { data, isError } = useQuery({
-    queryKey: ["namespace"],
-    queryFn: async () => {
-      const URL = "http://localhost:8080/api/namespaces";
-      const response = await fetch(URL, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      });
-      const data = await response.json();
-      return data;
-    },
-  });
-
-  if (isError) {
-    console.log("Error in getting all namespaces.");
-  }
 
   const formSchema = z.object({
     username: z.string().min(2).max(50),
@@ -130,59 +120,161 @@ rules:
     },
   });
 
-  const createRole = (event) => {
+  const createRole = async (event) => {
+    event.preventDefault();
     const jsonObject = yaml.load(formText);
     const jsonText = JSON.stringify(jsonObject, null, 2);
     const URL = "http://localhost:8080/api/roles";
 
-    const rolePayload = {
-      apiVersion: "rbac.authorization.k8s.io/v1",
-      kind: "Role",
-      metadata: {
-        name: "example-role",
-        namespace: "your-namespace"
-      },
-      rules: [
-        {
-          apiGroups: [""],
-          resources: ["pods"],
-          verbs: ["get", "list", "watch"]
-        }
-      ]
-    };
-
-    fetch(URL, {
+    const response = await fetch(URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: jsonText
-    })
-    .then(async (response) => {
-      console.log(rolesArray)
-      const newRole = await response.json();
-      setRolesArray([...rolesArray, newRole]);
+      body: jsonText,
     });
+
+    const newRole = await response.json();
+    setData((prevData) => [...prevData, newRole]);
   };
 
-  const deleteRole = (id, namespace, name) => {
+  const deleteRole = async (namespace, name) => {
     const URL = `http://localhost:8080/api/roles?namespace=${namespace}&name=${name}`;
-    fetch(URL, {
+    await fetch(URL, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
       },
-    }).then(() => {
-      const newArray = rolesArray.filter((role, index) => {
-        return index !== id;
-      });
-      setRolesArray(newArray);
     });
+
+    setData((prevData) =>
+      prevData.filter((role) => role.metadata.name !== name)
+    );
   };
 
   const goToRolePage = async (role) => {
     await router.push(`/dashboard/roles/${role}`);
   };
+
+  const columns: ColumnDef<Role>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      id: "name",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Name
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      accessorKey: "metadata.name",
+    },
+    {
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Namespace
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      accessorKey: "metadata.namespace",
+    },
+    {
+      id: "createdAt",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Created At
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      accessorKey: "metadata.creationTimestamp",
+      cell: ({ getValue }) => {
+        const timestamp: any = getValue();
+        return format(new Date(timestamp), "hh:mm:ss a - MM/dd");
+      },
+    },
+    {
+      id: "actions",
+      header: "",
+      accessorKey: "metadata",
+      cell: ({ row }) => {
+        const { namespace, name } = row.original.metadata;
+        const id = row.original.metadata.name;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button aria-haspopup="true" size="icon" variant="ghost">
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">Toggle menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem>Edit</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => deleteRole(namespace, name)}>
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
+
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
+    onColumnFiltersChange: setColumnFilters,
+    getFilteredRowModel: getFilteredRowModel(),
+    onRowSelectionChange: setRowSelection,
+    state: {
+      sorting,
+      columnFilters,
+      rowSelection,
+    },
+  });
+
+  const bulkDelete = () => {
+    // TODO
+  }
 
   return (
     <Card className="h-full">
@@ -193,7 +285,8 @@ rules:
             <CardDescription>Manage User Roles and Permissions</CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Button>Delete</Button>
+            {/* TODO bulk delete */}
+            <Button onClick={()=> bulkDelete()}>Delete</Button> 
             <Dialog>
               <DialogTrigger type="button">Create</DialogTrigger>
               <DialogContent>
@@ -243,7 +336,7 @@ rules:
                                       <SelectValue placeholder="Namespace" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {data.map((namespace) => (
+                                      {namespace.map((namespace) => (
                                         <SelectItem
                                           value={namespace.metadata.name}
                                           key={namespace.metadata.uid}
@@ -308,70 +401,87 @@ rules:
         </div>
       </CardHeader>
       <CardContent>
+        <div className="flex items-center py-4">
+          <Input
+            placeholder="Filter name..."
+            value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+            onChange={(event) =>
+              table.getColumn("name")?.setFilterValue(event.target.value)
+            }
+            className="max-w-sm"
+          />
+        </div>
         <Table className="h-full">
           <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Namespace</TableHead>
-              <TableHead className="hidden md:table-cell">Created at</TableHead>
-              <TableHead>
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rolesArray.map((role, id) => (
-              <TableRow key={role.metadata.uid}>
-                <TableCell
-                  className="font-medium cursor-pointer"
-                  onClick={() => goToRolePage(role.metadata.name)}
-                >
-                  {role.metadata.name}
-                </TableCell>
-                <TableCell>{role.metadata.namespace}</TableCell>
-                <TableCell>
-                  {new Date(role.metadata.creationTimestamp).toLocaleDateString(
-                    "en-US",
-                    {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    }
-                  )}
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Toggle menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem>Edit</DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          deleteRole(
-                            id,
-                            role.metadata.namespace,
-                            role.metadata.name
-                          )
-                        }
-                      >
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  return (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
+                  No results.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </CardContent>
       <CardFooter>
-        <div className="text-xs text-muted-foreground">
-          Showing <strong>1-10</strong> of <strong>32</strong> products
+        <div className="flex-1 text-sm text-muted-foreground">
+          {table.getFilteredSelectedRowModel().rows.length} of{" "}
+          {table.getFilteredRowModel().rows.length} row(s) selected.
+        </div>
+        <div className="flex items-center justify-end space-x-2 py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Next
+          </Button>
         </div>
       </CardFooter>
     </Card>
