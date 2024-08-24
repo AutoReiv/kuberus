@@ -14,8 +14,6 @@ type CreateAdminRequest struct {
 	PasswordConfirm string `json:"passwordConfirm" binding:"required,eqfield=Password"`
 }
 
-var adminExists bool
-
 // CreateAdminHandler handles the creation of an admin account.
 func CreateAdminHandler(c *gin.Context) {
 	var req CreateAdminRequest
@@ -27,6 +25,12 @@ func CreateAdminHandler(c *gin.Context) {
 	// Sanitize user input
 	username := utils.SanitizeInput(req.Username)
 	password := utils.SanitizeInput(req.Password)
+
+	// Validate password strength
+	if !utils.IsStrongPassword(password) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password does not meet strength requirements"})
+		return
+	}
 
 	// Hash the password
 	hashedPassword, err := utils.HashPassword(password)

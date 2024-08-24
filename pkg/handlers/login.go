@@ -31,6 +31,12 @@ func LoginHandler(c *gin.Context) {
 	username := utils.SanitizeInput(req.Username)
 	password := utils.SanitizeInput(req.Password)
 
+	// Implement rate limiting to prevent brute-force attacks
+	if !rateLimit(c.ClientIP()) {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many requests"})
+		return
+	}
+
 	// Acquire lock to synchronize access to shared data
 	mu.Lock()
 	hashedPassword, ok := users[username]
@@ -44,7 +50,14 @@ func LoginHandler(c *gin.Context) {
 
 	// Generate and store secure session token
 	sessionToken := utils.GenerateSessionToken()
-	// TODO: Store the session token securely in a database or cache
+	session := &Session{
+		Username: username,
+		Token:    sessionToken,
+		ExpireAt: time.Now().Add(24 * time.Hour),
+	}
+	mu.Lock()
+	sessions[sessionToken] = session
+	mu.Unlock()
 
 	// Set a secure cookie for session management
 	expiration := time.Now().Add(24 * time.Hour)
@@ -57,7 +70,7 @@ func LoginHandler(c *gin.Context) {
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	}
-	c.SetCookie(cookie.Name, cookie.Value, int(cookie.Expires.Unix()), cookie.Path, cookie.Domain, cookie.Secure, cookie.HttpOnly)
+	c.SetCookie(cookie.Name, cookie.Value, int(cookie.Expires.Unix()), cookie.Path, "", cookie.Secure, cookie.HttpOnly)
 
 	c.JSON(http.StatusOK, LoginResponse{Message: "Login successful"})
 }

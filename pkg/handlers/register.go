@@ -3,15 +3,8 @@ package handlers
 import (
 	"net/http"
 	"rbac/pkg/utils"
-	"sync"
 
 	"github.com/gin-gonic/gin"
-)
-
-// Mock user data store
-var (
-	users = map[string]string{}
-	mu    sync.Mutex
 )
 
 // RegisterRequest represents the request payload for user registration.
@@ -38,13 +31,9 @@ func RegisterHandler(c *gin.Context) {
 	username := utils.SanitizeInput(req.Username)
 	password := utils.SanitizeInput(req.Password)
 
-	// Acquire lock to synchronize access to shared data
-	mu.Lock()
-	defer mu.Unlock()
-
-	// Check if the username already exists
-	if _, exists := users[username]; exists {
-		c.JSON(http.StatusConflict, gin.H{"error": "Username already exists"})
+	// Validate password strength
+	if !utils.IsStrongPassword(password) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password does not meet strength requirements"})
 		return
 	}
 
@@ -52,6 +41,16 @@ func RegisterHandler(c *gin.Context) {
 	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error hashing password"})
+		return
+	}
+
+	// Acquire lock to synchronize access to shared data
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Check if the username already exists
+	if _, exists := users[username]; exists {
+		c.JSON(http.StatusConflict, gin.H{"error": "Username already exists"})
 		return
 	}
 
