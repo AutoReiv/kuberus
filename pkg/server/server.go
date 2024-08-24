@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"rbac/pkg/auth"
 	"rbac/pkg/handlers"
 	"rbac/pkg/middleware"
 	"time"
@@ -16,6 +17,9 @@ import (
 
 func NewServer(clientset *kubernetes.Clientset) *http.Server {
 	r := gin.Default()
+
+	// Admin account creation route
+	r.POST("/admin/create", handlers.CreateAdminHandler)
 
 	// Register the HTTP handlers
 	r.POST("/login", handlers.LoginHandler)
@@ -33,6 +37,13 @@ func NewServer(clientset *kubernetes.Clientset) *http.Server {
 	r.GET("/health", func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
+
+	// Configure the OIDC provider
+	auth.ConfigureOIDCProvider()
+
+	// OAuth routes
+	r.GET("/auth/login", handlers.OAuthLoginHandler)
+	r.GET("/auth/callback", handlers.OAuthCallbackHandler)
 
 	port := os.Getenv("PORT")
 	if port == "" {

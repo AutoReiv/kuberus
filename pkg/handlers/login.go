@@ -8,18 +8,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// LoginRequest represents the login request payload.
+// LoginRequest represents the request payload for user login.
 type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
 }
 
-// LoginResponse represents the login response payload.
+// LoginResponse represents the response payload for a successful login.
 type LoginResponse struct {
 	Message string `json:"message"`
 }
 
-// LoginHandler handles the login page.
+// LoginHandler handles user login.
 func LoginHandler(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -27,16 +27,36 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
+	// Sanitize user input
+	username := utils.SanitizeInput(req.Username)
+	password := utils.SanitizeInput(req.Password)
+
+	// Acquire lock to synchronize access to shared data
+	mu.Lock()
+	hashedPassword, ok := users[username]
+	mu.Unlock()
+
 	// Authenticate user
-	hashedPassword, ok := users[req.Username]
-	if !ok || !utils.CheckPasswordHash(req.Password, hashedPassword) {
+	if !ok || !utils.CheckPasswordHash(password, hashedPassword) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
-	// Set a cookie for session management
+	// Generate and store secure session token
+	sessionToken := utils.GenerateSessionToken()
+	// TODO: Store the session token securely in a database or cache
+
+	// Set a secure cookie for session management
 	expiration := time.Now().Add(24 * time.Hour)
-	cookie := http.Cookie{Name: "session_token", Value: "authenticated", Expires: expiration}
+	cookie := http.Cookie{
+		Name:     "session_token",
+		Value:    sessionToken,
+		Expires:  expiration,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	}
 	c.SetCookie(cookie.Name, cookie.Value, int(cookie.Expires.Unix()), cookie.Path, cookie.Domain, cookie.Secure, cookie.HttpOnly)
 
 	c.JSON(http.StatusOK, LoginResponse{Message: "Login successful"})
