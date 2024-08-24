@@ -61,16 +61,7 @@ func LoginHandler(c *gin.Context) {
 
 	// Set a secure cookie for session management
 	expiration := time.Now().Add(24 * time.Hour)
-	cookie := http.Cookie{
-		Name:     "session_token",
-		Value:    sessionToken,
-		Expires:  expiration,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-	}
-	c.SetCookie(cookie.Name, cookie.Value, int(cookie.Expires.Unix()), cookie.Path, "", cookie.Secure, cookie.HttpOnly)
+	c.SetCookie("session_token", sessionToken, int(expiration.Unix()), "/", "", true, true)
 
 	c.JSON(http.StatusOK, LoginResponse{Message: "Login successful"})
 }

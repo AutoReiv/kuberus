@@ -23,7 +23,6 @@ func NewServer(clientset *kubernetes.Clientset) *http.Server {
 
 	// Register the HTTP handlers
 	r.POST("/login", handlers.LoginHandler)
-	r.POST("/register", handlers.RegisterHandler)
 
 	// Protected routes
 	api := r.Group("/api")
