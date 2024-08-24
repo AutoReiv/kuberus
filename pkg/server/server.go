@@ -1,32 +1,65 @@
 package server
 
 import (
+	"context"
+	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"rbac/pkg/handlers"
 	"rbac/pkg/middleware"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"k8s.io/client-go/kubernetes"
 )
 
-// NewServer initializes a new HTTP server
 func NewServer(clientset *kubernetes.Clientset) *http.Server {
-
-	// Create a new ServeMux
-	mux := http.NewServeMux()
+	r := gin.Default()
 
 	// Register the HTTP handlers
-	mux.HandleFunc("/login", handlers.LoginHandler)
-	mux.HandleFunc("/register", handlers.RegisterHandler)
+	r.POST("/login", handlers.LoginHandler)
+	r.POST("/register", handlers.RegisterHandler)
 
 	// Protected routes
-	mux.Handle("/api/namespaces", middleware.AuthMiddleware(http.HandlerFunc(handlers.NamespacesHandler(clientset))))
-	mux.Handle("/api/roles", middleware.AuthMiddleware(http.HandlerFunc(handlers.RolesHandler(clientset))))
-	mux.Handle("/api/roles/details", middleware.AuthMiddleware(http.HandlerFunc(handlers.RoleDetailsHandler(clientset))))
-	mux.Handle("/api/roles/compare", middleware.AuthMiddleware(http.HandlerFunc(handlers.CompareRolesHandler(clientset))))
-	mux.Handle("/api/clusterroles", middleware.AuthMiddleware(http.HandlerFunc(handlers.ClusterRolesHandler(clientset))))
+	api := r.Group("/api")
+	api.Use(middleware.AuthMiddleware)
+	api.GET("/namespaces", handlers.NamespacesHandler(clientset))
+	api.GET("/roles", handlers.RolesHandler(clientset))
+	api.GET("/roles/details", handlers.RoleDetailsHandler(clientset))
+	api.GET("/clusterroles", handlers.ClusterRolesHandler(clientset))
 
-	return &http.Server{
-		Addr:    ":8080",
-		Handler: mux,
+	// Add health check endpoint
+	r.GET("/health", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
+
+	srv := &http.Server{
+		Addr:         ":" + port,
+		Handler:      r,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	// Graceful shutdown
+	go func() {
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt)
+		<-sigint
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Printf("HTTP server Shutdown: %v", err)
+		}
+	}()
+
+	return srv
 }

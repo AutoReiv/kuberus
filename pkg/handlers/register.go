@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"rbac/pkg/utils"
 	"sync"
+
+	"github.com/gin-gonic/gin"
 )
 
 // Mock user data store
@@ -26,47 +27,34 @@ type RegisterResponse struct {
 }
 
 // RegisterHandler handles user registration.
-func RegisterHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		var req RegisterRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request payload", http.StatusBadRequest)
-			return
-		}
-
-		mu.Lock()
-		defer mu.Unlock()
-
-		// Check if the admin account already exists
-		if adminExists {
-			http.Error(w, "Registration is closed", http.StatusForbidden)
-			return
-		}
-
-		// Check if the username already exists
-		if _, exists := users[req.Username]; exists {
-			http.Error(w, "Username already exists", http.StatusConflict)
-			return
-		}
-
-		// Hash the password
-		hashedPassword, err := utils.HashPassword(req.Password)
-		if err != nil {
-			http.Error(w, "Error hashing password", http.StatusInternalServerError)
-			return
-		}
-
-		// Store the user details
-		users[req.Username] = hashedPassword
-
-		// Set the adminExists flag to true
-		adminExists = true
-
-		resp := RegisterResponse{Message: "User registered successfully"}
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+func RegisterHandler(c *gin.Context) {
+	var req RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
 
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	mu.Lock()
+	defer mu.Unlock()
+
+	if adminExists {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Registration is closed"})
+		return
+	}
+
+	if _, exists := users[req.Username]; exists {
+		c.JSON(http.StatusConflict, gin.H{"error": "Username already exists"})
+		return
+	}
+
+	hashedPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error hashing password"})
+		return
+	}
+
+	users[req.Username] = hashedPassword
+	adminExists = true
+
+	c.JSON(http.StatusOK, RegisterResponse{Message: "User registered successfully"})
 }

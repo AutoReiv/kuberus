@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"rbac/pkg/utils"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 // LoginRequest represents the login request payload.
@@ -19,31 +20,24 @@ type LoginResponse struct {
 }
 
 // LoginHandler handles the login page.
-func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		var req LoginRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request payload", http.StatusBadRequest)
-			return
-		}
-
-		// Authenticate user
-		hashedPassword, ok := users[req.Username]
-		if !ok || !utils.CheckPasswordHash(req.Password, hashedPassword) {
-			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-			return
-		}
-
-		// Set a cookie for session management
-		expiration := time.Now().Add(24 * time.Hour)
-		cookie := http.Cookie{Name: "session_token", Value: "authenticated", Expires: expiration}
-		http.SetCookie(w, &cookie)
-
-		resp := LoginResponse{Message: "Login successful"}
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+func LoginHandler(c *gin.Context) {
+	var req LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
 
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	// Authenticate user
+	hashedPassword, ok := users[req.Username]
+	if !ok || !utils.CheckPasswordHash(req.Password, hashedPassword) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+
+	// Set a cookie for session management
+	expiration := time.Now().Add(24 * time.Hour)
+	cookie := http.Cookie{Name: "session_token", Value: "authenticated", Expires: expiration}
+	c.SetCookie(cookie.Name, cookie.Value, int(cookie.Expires.Unix()), cookie.Path, cookie.Domain, cookie.Secure, cookie.HttpOnly)
+
+	c.JSON(http.StatusOK, LoginResponse{Message: "Login successful"})
 }
