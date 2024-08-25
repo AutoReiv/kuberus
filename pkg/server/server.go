@@ -69,17 +69,20 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset) {
 	r.POST("/admin/create", handlers.CreateAdminHandler)
 
 	// Authentication routes
-	r.POST("/login", handlers.LoginHandler)
-	r.GET("/auth/login", handlers.OAuthLoginHandler)
-	r.GET("/auth/callback", handlers.OAuthCallbackHandler)
+	auth := r.Group("/auth")
+	auth.POST("/login", handlers.LoginHandler)
+	auth.GET("/login", handlers.OAuthLoginHandler)
+	auth.GET("/callback", handlers.OAuthCallbackHandler)
 
 	// Protected API routes
 	api := r.Group("/api")
 	api.Use(middleware.AuthMiddleware())
 	api.GET("/namespaces", handlers.NamespacesHandler(clientset))
 	api.GET("/roles", handlers.RolesHandler(clientset))
+	api.GET("/rolebindings", handlers.RoleBindingsHandler(clientset))
 	api.GET("/roles/details", handlers.RoleDetailsHandler(clientset))
 	api.GET("/clusterroles", handlers.ClusterRolesHandler(clientset))
+	api.GET("/clusterrolebindings", handlers.ClusterRoleBindingsHandler(clientset))
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
