@@ -18,8 +18,8 @@ import (
 
 // Config holds the configuration for the server.
 type Config struct {
-	Port       string
-	IsDevMode  bool
+	Port      string
+	IsDevMode bool
 }
 
 // NewConfig creates a new configuration with environment variables.
@@ -47,7 +47,7 @@ func NewServer(clientset *kubernetes.Clientset, config *Config) *http.Server {
 	r.Use(middleware.SecureHeaders())
 
 	// Register routes
-	registerRoutes(r, clientset)
+	registerRoutes(r, clientset, config)
 
 	// Configure the OIDC provider
 	auth.ConfigureOIDCProvider()
@@ -96,6 +96,7 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Conf
 		c.Status(http.StatusOK)
 	})
 }
+
 // handleGracefulShutdown handles the graceful shutdown of the server.
 func handleGracefulShutdown(srv *http.Server) {
 	go func() {
