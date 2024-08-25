@@ -2,68 +2,59 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-// clusterRolesHandler handles listing cluster roles
-func ClusterRolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		switch r.Method {
+func ClusterRolesHandler(clientset *kubernetes.Clientset) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		switch c.Request.Method {
 		case http.MethodGet:
-			listClusterRoles(w, clientset)
+			listClusterRoles(c, clientset)
 		case http.MethodPost:
-			createClusterRole(w, r, clientset)
+			createClusterRole(c, clientset)
 		case http.MethodDelete:
-			deleteClusterRole(w, clientset, r.URL.Query().Get("name"))
+			deleteClusterRole(c, clientset, c.Query("name"))
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			c.Status(http.StatusMethodNotAllowed)
 		}
 	}
 }
 
-// listClusterRoles lists all cluster roles
-func listClusterRoles(w http.ResponseWriter, clientset *kubernetes.Clientset) {
+func listClusterRoles(c *gin.Context, clientset *kubernetes.Clientset) {
 	clusterRoles, err := clientset.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	// Set the response header to JSON
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(clusterRoles.Items)
+	c.JSON(http.StatusOK, clusterRoles.Items)
 }
 
-// createClusterRole creates a new cluster role
-func createClusterRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset) {
+func createClusterRole(c *gin.Context, clientset *kubernetes.Clientset) {
 	var clusterRole rbacv1.ClusterRole
-	if err := json.NewDecoder(r.Body).Decode(&clusterRole); err != nil {
-		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&clusterRole); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to decode request body: " + err.Error()})
 		return
 	}
 
 	createdClusterRole, err := clientset.RbacV1().ClusterRoles().Create(context.TODO(), &clusterRole, metav1.CreateOptions{})
 	if err != nil {
-		http.Error(w, "Failed to create cluster role: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create cluster role: " + err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(createdClusterRole)
+	c.JSON(http.StatusOK, createdClusterRole)
 }
 
-// deleteClusterRole deletes a cluster role
-func deleteClusterRole(w http.ResponseWriter, clientset *kubernetes.Clientset, name string) {
+func deleteClusterRole(c *gin.Context, clientset *kubernetes.Clientset, name string) {
 	err := clientset.RbacV1().ClusterRoles().Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
-		http.Error(w, "Failed to delete cluster role: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete cluster role: " + err.Error()})
 		return
 	}
-
-	w.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }

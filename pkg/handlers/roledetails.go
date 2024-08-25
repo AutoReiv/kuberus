@@ -2,32 +2,27 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/gin-gonic/gin"
 )
 
 // roleDetailsHandler handles fetching detailed information about a specific role
-func RoleDetailsHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
-	// Get role name and namespace from query parameters
-	return func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			getRoleDetails(w, r, clientset)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
+func RoleDetailsHandler(clientset *kubernetes.Clientset) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		getRoleDetails(c, clientset)
 	}
 }
 
 // getRoleDetails fetches detailed information about a specific role
-func getRoleDetails(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset) {
+func getRoleDetails(c *gin.Context, clientset *kubernetes.Clientset) {
 	// Get the role name and namespace from the query parameters
-	roleName := r.URL.Query().Get("roleName")
-	namespace := r.URL.Query().Get("namespace")
+	roleName := c.Query("roleName")
+	namespace := c.Query("namespace")
 	if namespace == "" {
 		namespace = "default"
 	}
@@ -35,14 +30,14 @@ func getRoleDetails(w http.ResponseWriter, r *http.Request, clientset *kubernete
 	// Fetch the Role details
 	role, err := clientset.RbacV1().Roles(namespace).Get(context.TODO(), roleName, metav1.GetOptions{})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Fetch the associated RoleBindings
 	roleBindings, err := clientset.RbacV1().RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -67,6 +62,5 @@ func getRoleDetails(w http.ResponseWriter, r *http.Request, clientset *kubernete
 	}
 
 	// Return the detailed role information as JSON
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	c.JSON(http.StatusOK, response)
 }
