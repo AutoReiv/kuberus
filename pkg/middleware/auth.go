@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -10,6 +11,8 @@ import (
 func AuthMiddleware(isDevMode bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if isDevMode {
+			// Debug statement to verify dev mode
+			fmt.Println("Development mode: Bypassing authentication")
 			// Skip authentication in development mode
 			c.Next()
 			return
@@ -33,6 +36,7 @@ func AuthMiddleware(isDevMode bool) gin.HandlerFunc {
 		// Proceed to the next handler if the token is valid
 		c.Next()
 	}
+
 }
 
 // isValidToken validates the session token (placeholder function).
