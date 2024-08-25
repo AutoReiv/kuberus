@@ -18,7 +18,8 @@ import (
 
 // Config holds the configuration for the server.
 type Config struct {
-	Port string
+	Port       string
+	IsDevMode  bool
 }
 
 // NewConfig creates a new configuration with environment variables.
@@ -27,7 +28,10 @@ func NewConfig() *Config {
 	if port == "" {
 		port = "8080"
 	}
-	return &Config{Port: port}
+
+	isDevMode := os.Getenv("DEV_MODE") == "true"
+
+	return &Config{Port: port, IsDevMode: isDevMode}
 }
 
 // NewServer creates a new HTTP server with the necessary routes and middleware.
@@ -64,9 +68,12 @@ func NewServer(clientset *kubernetes.Clientset, config *Config) *http.Server {
 }
 
 // registerRoutes registers all the routes for the server.
-func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset) {
+func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Config) {
 	// Admin account creation route
 	r.POST("/admin/create", handlers.CreateAdminHandler)
+
+	// OIDC configuration route (accessible only to admin)
+	r.POST("/admin/oidc-config", middleware.AuthMiddleware(config.IsDevMode), handlers.SetupOIDCConfigHandler)
 
 	// Authentication routes
 	auth := r.Group("/auth")
@@ -76,7 +83,7 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset) {
 
 	// Protected API routes
 	api := r.Group("/api")
-	api.Use(middleware.AuthMiddleware())
+	api.Use(middleware.AuthMiddleware(config.IsDevMode))
 	api.GET("/namespaces", handlers.NamespacesHandler(clientset))
 	api.GET("/roles", handlers.RolesHandler(clientset))
 	api.GET("/rolebindings", handlers.RoleBindingsHandler(clientset))
@@ -89,7 +96,6 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset) {
 		c.Status(http.StatusOK)
 	})
 }
-
 // handleGracefulShutdown handles the graceful shutdown of the server.
 func handleGracefulShutdown(srv *http.Server) {
 	go func() {

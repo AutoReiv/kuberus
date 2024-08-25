@@ -7,8 +7,14 @@ import (
 )
 
 // AuthMiddleware is a middleware that checks for a valid session token.
-func AuthMiddleware() gin.HandlerFunc {
+func AuthMiddleware(isDevMode bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if isDevMode {
+			// Skip authentication in development mode
+			c.Next()
+			return
+		}
+
 		// Retrieve the session token from the cookie
 		token, err := c.Cookie("session_token")
 		if err != nil {
@@ -36,5 +42,7 @@ func isValidToken(token string) bool {
 	// You can also verify the token's signature and expiration
 	// Return true if the token is valid, false otherwise
 	// TODO: Implement token validation logic
+
+	// For development purposes, always return true
 	return token == "valid_token"
 }
