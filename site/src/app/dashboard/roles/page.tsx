@@ -3,6 +3,7 @@
 import React from "react";
 import DataTable from "./_components/DataTable";
 import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Roles = () => {
   // Get Roles
@@ -41,7 +42,7 @@ const Roles = () => {
   
   return (
     <div className="flex w-full flex-col">
-      {isPendingRoles ? <div>Loading...</div> : <DataTable roles={roles.items} namespace={namespace}></DataTable>}
+      {isPendingRoles ? <Skeleton className="h-full w-100 m-4"></Skeleton> : <DataTable roles={roles.items} namespace={namespace}></DataTable>}
     </div>
   );
 };
