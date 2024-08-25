@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, CheckCircle2, MoreHorizontal } from "lucide-react";
 import YamlEditor from "@focus-reactive/react-yaml";
 
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/select";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -64,27 +65,39 @@ import {
   getFilteredRowModel,
 } from "@tanstack/react-table";
 
-import { object, z } from "zod";
+import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { ColumnDef } from "@tanstack/react-table";
-import { useRouter } from "next/navigation";
 import { Role } from "../../_interfaces/role";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { ResponsiveDialog } from "./ResponsiveDialog";
 
 export default function DataTable({ roles, namespace }) {
   const [data, setData] = useState(roles);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState({});
+  const [createRoleDialogOpen, setCreateRoleDialogOpen] = useState(false);
+  const [deleteConfirmationDialog, setDeleteConfirmationDialog] =
+    useState(false);
 
-  const router = useRouter();
+  const badges = [
+    { name: "Create" },
+    { name: "Delete" },
+    { name: "Get" },
+    { name: "List" },
+    { name: "Patch" },
+    { name: "Update" },
+    { name: "Watch" },
+  ];
+
   const yaml = require("js-yaml");
-  const yamlText = `
-apiVersion: rbac.authorization.k8s.io/v1
+  const yamlText = `apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: example-role123
@@ -109,33 +122,44 @@ rules:
     setformText(text);
   };
 
-  const formSchema = z.object({
-    username: z.string().min(2).max(50),
-  });
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      username: "",
-    },
-  });
-
-  const createRole = async (event) => {
-    event.preventDefault();
+  const createRole = async (values, isForm?) => {
     const jsonObject = yaml.load(formText);
     const jsonText = JSON.stringify(jsonObject, null, 2);
     const URL = "http://localhost:8080/api/roles";
+    const formPayload = {
+      apiVersion: "rbac.authorization.k8s.io/v1",
+      kind: "Role",
+      metadata: {
+        name: values.nameOfRole,
+        namespace: values.namespaceForRole,
+      },
+      rules: [
+        {
+          apiGroups: [""],
+          resources: ["pods"],
+          verbs: values.badges,
+        },
+      ],
+    };
 
     const response = await fetch(URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: jsonText,
+      body: isForm ? JSON.stringify(formPayload) : jsonText,
     });
 
     const newRole = await response.json();
     setData((prevData) => [...prevData, newRole]);
+    console.log(newRole);
+    setCreateRoleDialogOpen(false);
+    toast(
+      <div className="flex items-center justify-start gap-4">
+        <CheckCircle2 className="text-green-500" />
+        <span>{`Successfully created ${newRole.metadata.name} in the ${newRole.metadata.namespace} namespace.`}</span>
+      </div>
+    );
   };
 
   const deleteRole = async (namespace, name) => {
@@ -150,10 +174,15 @@ rules:
     setData((prevData) =>
       prevData.filter((role) => role.metadata.name !== name)
     );
-  };
 
-  const goToRolePage = async (role) => {
-    await router.push(`/dashboard/roles/${role}`);
+    toast(
+      <div className="flex items-center justify-start gap-4">
+        <CheckCircle2 className="text-green-500" />
+        <span>{`Successfully deleted ${name} in the ${namespace} namespace.`}</span>
+      </div>
+    );
+
+    setDeleteConfirmationDialog(false);
   };
 
   const columns: ColumnDef<Role>[] = [
@@ -161,10 +190,7 @@ rules:
       id: "select",
       header: ({ table }) => (
         <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
+          checked={table.getIsAllPageRowsSelected()}
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
         />
@@ -172,7 +198,7 @@ rules:
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}  
           aria-label="Select row"
         />
       ),
@@ -224,7 +250,7 @@ rules:
       accessorKey: "metadata.creationTimestamp",
       cell: ({ getValue }) => {
         const timestamp: any = getValue();
-        return format(new Date(timestamp), "hh:mm:ss a - MM/dd");
+        return format(new Date(timestamp), "MM/dd - hh:mm:ss a");
       },
     },
     {
@@ -235,21 +261,47 @@ rules:
         const { namespace, name } = row.original.metadata;
         const id = row.original.metadata.name;
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button aria-haspopup="true" size="icon" variant="ghost">
-                <MoreHorizontal className="h-4 w-4" />
-                <span className="sr-only">Toggle menu</span>
+          <>
+            <ResponsiveDialog
+              isOpen={deleteConfirmationDialog}
+              setIsOpen={setDeleteConfirmationDialog}
+              title="Delete Role"
+              description="Are you sure you want to delete this role?"
+            >
+              <Button
+                variant="destructive"
+                onClick={() => deleteRole(namespace, name)}
+              >
+                Confirm
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem>Edit</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => deleteRole(namespace, name)}>
+              <Button
+                variant="ghost"
+                onClick={() => setDeleteConfirmationDialog(false)}
+              >
+                Cancel
+              </Button>
+            </ResponsiveDialog>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button aria-haspopup="true" size="icon" variant="ghost">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Toggle menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem>Edit</DropdownMenuItem>
+                {/* <DropdownMenuItem onClick={() => deleteRole(namespace, name)}>
                 Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </DropdownMenuItem> */}
+                <DropdownMenuItem>
+                  <button onClick={() => setDeleteConfirmationDialog(true)}>
+                    Delete
+                  </button>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
         );
       },
     },
@@ -272,9 +324,29 @@ rules:
     },
   });
 
-  const bulkDelete = () => {
-    // TODO
-  }
+  const formSchema = z.object({
+    nameOfRole: z
+      .string()
+      .min(2, "Please have at least 2 characters in your name.")
+      .max(50, "50 characters is the max allowed"),
+    namespaceForRole: z.string().min(1, "Please select an option"),
+    badges: z.array(z.string()).refine((value) => value.some((item) => item), {
+      message: "You have to select at least one item.",
+    }),
+  });
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      nameOfRole: "",
+      namespaceForRole: "",
+      badges: ["Create"],
+    },
+  });
+
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    createRole(values, true);
+  };
 
   return (
     <Card className="h-full">
@@ -286,9 +358,20 @@ rules:
           </div>
           <div className="flex items-center gap-2">
             {/* TODO bulk delete */}
-            <Button onClick={()=> bulkDelete()}>Delete</Button> 
-            <Dialog>
-              <DialogTrigger type="button">Create</DialogTrigger>
+            {/* <Button onClick={() => bulkDelete()}>Delete</Button> */}
+            <Dialog
+              onOpenChange={() => {
+                form.reset();
+                setCreateRoleDialogOpen(true);
+              }}
+              open={createRoleDialogOpen}
+            >
+              <DialogTrigger
+                type="button"
+                className="bg-primary py-2 px-4 text-secondary rounded-md font-semibold"
+              >
+                Create
+              </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Create a Role</DialogTitle>
@@ -296,7 +379,11 @@ rules:
                     Type in your information for creating a form.
                   </DialogDescription>
                 </DialogHeader>
-
+                <DialogClose
+                  onClick={() => {
+                    console.log("clicked");
+                  }}
+                ></DialogClose>
                 <Tabs defaultValue="form">
                   <TabsList className="w-full">
                     <TabsTrigger value="form" className="w-full">
@@ -309,79 +396,98 @@ rules:
                   <TabsContent value="form">
                     <Form {...form}>
                       <form
-                        onSubmit={form.handleSubmit(createRole)}
+                        onSubmit={form.handleSubmit(onSubmit)}
                         className="space-y-8"
                       >
                         <FormField
                           control={form.control}
-                          name="username"
+                          name="nameOfRole"
                           render={({ field }) => (
-                            <div>
-                              <FormItem className="mb-4">
-                                <FormLabel>Name</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="shadcn" {...field} />
-                                </FormControl>
-                                <FormDescription>
-                                  This is your public display name.
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-
-                              <FormItem>
-                                <FormLabel>Namespace</FormLabel>
-                                <FormControl>
-                                  <Select>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Namespace" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {namespace.map((namespace) => (
-                                        <SelectItem
-                                          value={namespace.metadata.name}
-                                          key={namespace.metadata.uid}
-                                        >
-                                          {namespace.metadata.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </FormControl>
-                                <FormDescription>
-                                  Select the namespace.
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-
-                              <FormItem>
-                                <FormLabel>Verbs</FormLabel>
-                                <FormControl>
-                                  <div className="flex items-center justify-start gap-2 flex-wrap">
-                                    <Badge variant="outline">Create</Badge>
-                                    <Badge variant="outline">Delete</Badge>
-                                    <Badge variant="outline">Get</Badge>
-                                    <Badge variant="outline">List</Badge>
-                                    <Badge variant="outline">Patch</Badge>
-                                    <Badge variant="outline">Update</Badge>
-                                    <Badge variant="outline">Watch</Badge>
-                                  </div>
-                                </FormControl>
-                                <FormDescription>
-                                  Select verb(s)
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                              <FormItem>
-                                <FormLabel>Resources</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="shadcn" {...field} />
-                                </FormControl>
-                                <FormDescription>
-                                  Select the namespace.
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            </div>
+                            <FormItem>
+                              <FormLabel>Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Name" {...field} />
+                              </FormControl>
+                              <FormDescription>
+                                This will be the name of your role.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="namespaceForRole"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Namespace</FormLabel>
+                              <FormControl>
+                                <Select onValueChange={field.onChange}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select namespace" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {namespace.map((namespace) => (
+                                      <SelectItem
+                                        value={namespace.metadata.name}
+                                        key={namespace.metadata.uid}
+                                      >
+                                        {namespace.metadata.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="badges"
+                          render={({ field }) => (
+                            <FormItem className="columns-2">
+                              {badges.map((badge) => (
+                                <FormField
+                                  key={badge.name}
+                                  control={form.control}
+                                  name="badges"
+                                  render={({ field }) => {
+                                    return (
+                                      <FormItem
+                                        key={badge.name}
+                                        className="flex flex-row items-start space-x-3 space-y-0"
+                                      >
+                                        <FormControl>
+                                          <Checkbox
+                                            checked={field.value?.includes(
+                                              badge.name
+                                            )}
+                                            onCheckedChange={(checked) => {
+                                              return checked
+                                                ? field.onChange([
+                                                    ...field.value,
+                                                    badge.name,
+                                                  ])
+                                                : field.onChange(
+                                                    field.value?.filter(
+                                                      (value) =>
+                                                        value !== badge.name
+                                                    )
+                                                  );
+                                            }}
+                                          />
+                                        </FormControl>
+                                        <FormLabel className="text-sm font-normal">
+                                          {badge.name}
+                                        </FormLabel>
+                                      </FormItem>
+                                    );
+                                  }}
+                                />
+                              ))}
+                              <FormMessage />
+                            </FormItem>
                           )}
                         />
                         <Button type="submit">Submit</Button>
@@ -390,7 +496,7 @@ rules:
                   </TabsContent>
                   <TabsContent value="yaml">
                     <YamlEditor text={formText} onChange={handleChange} />
-                    <Button onClick={() => createRole(event)}>
+                    <Button variant="ghost" onClick={() => createRole(event)}>
                       Create Role{" "}
                     </Button>
                   </TabsContent>
