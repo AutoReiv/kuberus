@@ -15,9 +15,10 @@ func ConfigureOIDCProvider() {
 	callbackURL := os.Getenv("OIDC_CALLBACK_URL")
 	endpoint := os.Getenv("OIDC_ENDPOINT")
 
-	// Ensure all required environment variables are set
+	// Check if any of the OIDC environment variables are not set
 	if clientID == "" || clientSecret == "" || callbackURL == "" || endpoint == "" {
-		log.Fatal("OIDC configuration error: missing required environment variables")
+		log.Println("OIDC environment variables not set. Skipping OIDC configuration.")
+		return
 	}
 
 	// Create a new OIDC provider
