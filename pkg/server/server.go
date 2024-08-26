@@ -10,6 +10,7 @@ import (
 
 	"rbac/pkg/auth"
 	"rbac/pkg/handlers"
+	"rbac/pkg/handlers/rbac"
 	"rbac/pkg/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -84,12 +85,13 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Conf
 	// Protected API routes
 	api := r.Group("/api")
 	api.Use(middleware.AuthMiddleware(config.IsDevMode))
-	api.GET("/namespaces", handlers.NamespacesHandler(clientset))
-	api.GET("/roles", handlers.RolesHandler(clientset))
-	api.GET("/rolebindings", handlers.RoleBindingsHandler(clientset))
-	api.GET("/roles/details", handlers.RoleDetailsHandler(clientset))
-	api.GET("/clusterroles", handlers.ClusterRolesHandler(clientset))
-	api.GET("/clusterrolebindings", handlers.ClusterRoleBindingsHandler(clientset))
+	api.GET("/namespaces", rbac.NamespacesHandler(clientset))
+	api.GET("/roles", rbac.RolesHandler(clientset))
+	api.GET("/roles/details", rbac.RoleDetailsHandler(clientset))
+	api.GET("/rolebindings", rbac.RoleBindingsHandler(clientset))
+	api.GET("/clusterroles", rbac.ClusterRolesHandler(clientset))
+	api.GET("/clusterroles/details", rbac.ClusterRoleDetailsHandler(clientset))
+	api.GET("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
