@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"rbac/pkg/auth"
 	"rbac/pkg/utils"
 
 	"github.com/gin-gonic/gin"
@@ -31,27 +32,25 @@ func CreateAdminHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Password does not meet strength requirements"})
 		return
 	}
-
 	// Hash the password
-	hashedPassword, err := utils.HashPassword(password)
+	hashedPassword, err := auth.HashPassword(password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error hashing password"})
 		return
 	}
-
 	// Acquire lock to synchronize access to shared data
-	mu.Lock()
-	defer mu.Unlock()
+	auth.Mu.Lock()
+	defer auth.Mu.Unlock()
 
 	// Check if an admin account already exists
-	if adminExists {
+	if auth.AdminExists {
 		c.JSON(http.StatusConflict, gin.H{"error": "Admin account already exists"})
 		return
 	}
 
 	// Store the admin account information
-	users[username] = hashedPassword
-	adminExists = true
+	auth.Users[username] = hashedPassword
+	auth.AdminExists = true
 
 	c.JSON(http.StatusOK, gin.H{"message": "Admin account created successfully"})
 }
@@ -82,24 +81,24 @@ func CreateUserHandler(c *gin.Context) {
 	}
 
 	// Hash the password
-	hashedPassword, err := utils.HashPassword(password)
+	hashedPassword, err := auth.HashPassword(password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error hashing password"})
 		return
 	}
 
 	// Acquire lock to synchronize access to shared data
-	mu.Lock()
-	defer mu.Unlock()
+	auth.Mu.Lock()
+	defer auth.Mu.Unlock()
 
 	// Check if the username already exists
-	if _, exists := users[username]; exists {
+	if _, exists := auth.Users[username]; exists {
 		c.JSON(http.StatusConflict, gin.H{"error": "Username already exists"})
 		return
 	}
 
 	// Store the user account information
-	users[username] = hashedPassword
+	auth.Users[username] = hashedPassword
 
 	c.JSON(http.StatusOK, gin.H{"message": "User account created successfully"})
 }
