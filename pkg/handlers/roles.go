@@ -20,20 +20,25 @@ func RolesHandler(clientset *kubernetes.Clientset) gin.HandlerFunc {
 
 		switch c.Request.Method {
 		case http.MethodGet:
-			if namespace == "all" {
-				listAllNamespacesRoles(c, clientset)
-			} else {
-				listNamespaceRoles(c, clientset, namespace)
-			}
+			handleGetRoles(c, clientset, namespace)
 		case http.MethodPost:
-			createNamespaceRole(c, clientset, namespace)
+			handleCreateRole(c, clientset, namespace)
 		case http.MethodPut:
-			updateNamespaceRole(c, clientset, namespace)
+			handleUpdateRole(c, clientset, namespace)
 		case http.MethodDelete:
-			deleteNamespaceRole(c, clientset, namespace, c.Query("name"))
+			handleDeleteRole(c, clientset, namespace, c.Query("name"))
 		default:
 			c.Status(http.StatusMethodNotAllowed)
 		}
+	}
+}
+
+// handleGetRoles handles listing roles in a specific namespace or across all namespaces.
+func handleGetRoles(c *gin.Context, clientset *kubernetes.Clientset, namespace string) {
+	if namespace == "all" {
+		listAllNamespacesRoles(c, clientset)
+	} else {
+		listNamespaceRoles(c, clientset, namespace)
 	}
 }
 
@@ -57,8 +62,8 @@ func listAllNamespacesRoles(c *gin.Context, clientset *kubernetes.Clientset) {
 	c.JSON(http.StatusOK, roles)
 }
 
-// createNamespaceRole creates a new role in a specific namespace.
-func createNamespaceRole(c *gin.Context, clientset *kubernetes.Clientset, namespace string) {
+// handleCreateRole handles creating a new role in a specific namespace.
+func handleCreateRole(c *gin.Context, clientset *kubernetes.Clientset, namespace string) {
 	var role rbacv1.Role
 	if err := c.ShouldBindJSON(&role); err != nil {
 		handleError(c, err, http.StatusBadRequest)
@@ -74,8 +79,8 @@ func createNamespaceRole(c *gin.Context, clientset *kubernetes.Clientset, namesp
 	c.JSON(http.StatusOK, createdRole)
 }
 
-// updateNamespaceRole updates an existing role in a specific namespace.
-func updateNamespaceRole(c *gin.Context, clientset *kubernetes.Clientset, namespace string) {
+// handleUpdateRole handles updating an existing role in a specific namespace.
+func handleUpdateRole(c *gin.Context, clientset *kubernetes.Clientset, namespace string) {
 	var role rbacv1.Role
 	if err := c.ShouldBindJSON(&role); err != nil {
 		handleError(c, err, http.StatusBadRequest)
@@ -91,8 +96,8 @@ func updateNamespaceRole(c *gin.Context, clientset *kubernetes.Clientset, namesp
 	c.JSON(http.StatusOK, updatedRole)
 }
 
-// deleteNamespaceRole deletes a role in a specific namespace.
-func deleteNamespaceRole(c *gin.Context, clientset *kubernetes.Clientset, namespace, name string) {
+// handleDeleteRole handles deleting a role in a specific namespace.
+func handleDeleteRole(c *gin.Context, clientset *kubernetes.Clientset, namespace, name string) {
 	err := clientset.RbacV1().Roles(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
 		handleError(c, err, http.StatusInternalServerError)
@@ -118,13 +123,13 @@ func getRoleDetails(c *gin.Context, clientset *kubernetes.Clientset) {
 
 	role, err := clientset.RbacV1().Roles(namespace).Get(context.TODO(), roleName, metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleError(c, err, http.StatusInternalServerError)
 		return
 	}
 
 	roleBindings, err := clientset.RbacV1().RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleError(c, err, http.StatusInternalServerError)
 		return
 	}
 
