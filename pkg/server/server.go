@@ -87,6 +87,7 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Conf
 	api.Use(middleware.AuthMiddleware(config.IsDevMode))
 	api.GET("/namespaces", rbac.NamespacesHandler(clientset))
 	api.GET("/roles", rbac.RolesHandler(clientset))
+	api.POST("/roles", rbac.RoleBindingsHandler(clientset))
 	api.GET("/roles/details", rbac.RoleDetailsHandler(clientset))
 	api.GET("/rolebindings", rbac.RoleBindingsHandler(clientset))
 	api.GET("/clusterroles", rbac.ClusterRolesHandler(clientset))
