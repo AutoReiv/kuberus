@@ -89,6 +89,7 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Conf
 	api.GET("/rolebindings", handlers.RoleBindingsHandler(clientset))
 	api.GET("/roles/details", handlers.RoleDetailsHandler(clientset))
 	api.GET("/clusterroles", handlers.ClusterRolesHandler(clientset))
+	api.GET("/clusterroles/details", handlers.ClusterRoleDetailsHandler(clientset))
 	api.GET("/clusterrolebindings", handlers.ClusterRoleBindingsHandler(clientset))
 
 	// Health check endpoint
