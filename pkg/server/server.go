@@ -67,14 +67,13 @@ func NewServer(clientset *kubernetes.Clientset, config *Config) *http.Server {
 
 	return srv
 }
-
 // registerRoutes registers all the routes for the server.
 func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Config) {
 	// Admin account creation route
 	r.POST("/admin/create", handlers.CreateAdminHandler)
 
 	// OIDC configuration route (accessible only to admin)
-	r.POST("/admin/oidc-config", middleware.AuthMiddleware(config.IsDevMode), handlers.SetupOIDCConfigHandler)
+	r.POST("/admin/oidc-config", middleware.AuthMiddleware(config.IsDevMode), handlers.CreateOIDCConfigHandler)
 
 	// Authentication routes
 	auth := r.Group("/auth")
@@ -99,8 +98,12 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Conf
 	r.GET("/health", func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
-}
 
+	// Root URL handler
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "Welcome to the RBAC Manager"})
+	})
+}
 // handleGracefulShutdown handles the graceful shutdown of the server.
 func handleGracefulShutdown(srv *http.Server) {
 	go func() {

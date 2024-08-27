@@ -2,7 +2,6 @@ package auth
 
 import (
 	"log"
-	"os"
 
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/providers/openidConnect"
@@ -10,14 +9,11 @@ import (
 
 // ConfigureOIDCProvider sets up the OIDC provider using Goth.
 func ConfigureOIDCProvider() {
-	clientID := os.Getenv("OIDC_CLIENT_ID")
-	clientSecret := os.Getenv("OIDC_CLIENT_SECRET")
-	callbackURL := os.Getenv("OIDC_CALLBACK_URL")
-	endpoint := os.Getenv("OIDC_ENDPOINT")
+	clientID, clientSecret, callbackURL, endpoint := GetOIDCConfig()
 
-	// Check if any of the OIDC environment variables are not set
+	// Check if the OIDC configuration is set
 	if clientID == "" || clientSecret == "" || callbackURL == "" || endpoint == "" {
-		log.Println("OIDC environment variables not set. Skipping OIDC configuration.")
+		log.Println("OIDC configuration not set. Skipping OIDC configuration.")
 		return
 	}
 

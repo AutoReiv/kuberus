@@ -75,3 +75,27 @@ func AuthenticateUser(username, password string) bool {
 
 	return CheckPasswordHash(password, hashedPassword)
 }
+
+var (
+	oidcConfig struct {
+		ClientID     string
+		ClientSecret string
+		CallbackURL  string
+		Endpoint     string
+	}
+)
+
+func StoreOIDCConfig(clientID, clientSecret, callbackURL, endpoint string) {
+	Mu.Lock()
+	defer Mu.Unlock()
+	oidcConfig.ClientID = clientID
+	oidcConfig.ClientSecret = clientSecret
+	oidcConfig.CallbackURL = callbackURL
+	oidcConfig.Endpoint = endpoint
+}
+
+func GetOIDCConfig() (string, string, string, string) {
+	Mu.Lock()
+	defer Mu.Unlock()
+	return oidcConfig.ClientID, oidcConfig.ClientSecret, oidcConfig.CallbackURL, oidcConfig.Endpoint
+}
