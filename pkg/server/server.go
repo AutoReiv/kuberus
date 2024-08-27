@@ -87,11 +87,12 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Conf
 	api.Use(middleware.AuthMiddleware(config.IsDevMode))
 	api.GET("/namespaces", rbac.NamespacesHandler(clientset))
 	api.GET("/roles", rbac.RolesHandler(clientset))
-	api.POST("/roles", rbac.RolesHandler(clientset))
 	api.GET("/roles/details", rbac.RoleDetailsHandler(clientset))
+	api.POST("/roles", rbac.RolesHandler(clientset))
 	api.GET("/rolebindings", rbac.RoleBindingsHandler(clientset))
 	api.GET("/clusterroles", rbac.ClusterRolesHandler(clientset))
 	api.GET("/clusterroles/details", rbac.ClusterRoleDetailsHandler(clientset))
+	api.POST("/clusterroles", rbac.ClusterRolesHandler(clientset))
 	api.GET("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
 
 	// Health check endpoint
