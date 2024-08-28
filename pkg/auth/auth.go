@@ -21,26 +21,26 @@ type Session struct {
 	ExpireAt time.Time
 }
 
-var sessions = make(map[string]*Session)
+var userSessions = make(map[string]*Session) // Renamed to avoid conflict
 
 // StoreSession stores a new session.
 func StoreSession(session *Session) {
 	Mu.Lock()
 	defer Mu.Unlock()
-	sessions[session.Token] = session
+	userSessions[session.Token] = session
 }
 
 // GetSession retrieves a session by token.
 func GetSession(token string) (*Session, bool) {
 	Mu.Lock()
 	defer Mu.Unlock()
-	session, exists := sessions[token]
+	session, exists := userSessions[token]
 	if !exists {
 		return nil, false
 	}
 	// Check if the session has expired
 	if session.ExpireAt.Before(time.Now()) {
-		delete(sessions, token) // Clean up expired session
+		delete(userSessions, token) // Clean up expired session
 		return nil, false
 	}
 	return session, true
@@ -85,6 +85,7 @@ var (
 	}
 )
 
+// StoreOIDCConfig stores the OIDC configuration.
 func StoreOIDCConfig(clientID, clientSecret, callbackURL, endpoint string) {
 	Mu.Lock()
 	defer Mu.Unlock()
@@ -94,6 +95,7 @@ func StoreOIDCConfig(clientID, clientSecret, callbackURL, endpoint string) {
 	oidcConfig.Endpoint = endpoint
 }
 
+// GetOIDCConfig retrieves the OIDC configuration.
 func GetOIDCConfig() (string, string, string, string) {
 	Mu.Lock()
 	defer Mu.Unlock()
