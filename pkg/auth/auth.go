@@ -21,7 +21,7 @@ type Session struct {
 	ExpireAt time.Time
 }
 
-var userSessions = make(map[string]*Session) // Renamed to avoid conflict
+var userSessions = make(map[string]*Session)
 
 // StoreSession stores a new session.
 func StoreSession(session *Session) {
@@ -74,30 +74,4 @@ func AuthenticateUser(username, password string) bool {
 	}
 
 	return CheckPasswordHash(password, hashedPassword)
-}
-
-var (
-	oidcConfig struct {
-		ClientID     string
-		ClientSecret string
-		CallbackURL  string
-		Endpoint     string
-	}
-)
-
-// StoreOIDCConfig stores the OIDC configuration.
-func StoreOIDCConfig(clientID, clientSecret, callbackURL, endpoint string) {
-	Mu.Lock()
-	defer Mu.Unlock()
-	oidcConfig.ClientID = clientID
-	oidcConfig.ClientSecret = clientSecret
-	oidcConfig.CallbackURL = callbackURL
-	oidcConfig.Endpoint = endpoint
-}
-
-// GetOIDCConfig retrieves the OIDC configuration.
-func GetOIDCConfig() (string, string, string, string) {
-	Mu.Lock()
-	defer Mu.Unlock()
-	return oidcConfig.ClientID, oidcConfig.ClientSecret, oidcConfig.CallbackURL, oidcConfig.Endpoint
 }

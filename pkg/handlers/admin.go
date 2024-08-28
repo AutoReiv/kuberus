@@ -102,23 +102,3 @@ func CreateUserHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "User account created successfully"})
 }
-
-type CreateOIDCConfigRequest struct {
-	ClientID     string `json:"clientID" binding:"required"`
-	ClientSecret string `json:"clientSecret" binding:"required"`
-	CallbackURL  string `json:"callbackURL" binding:"required"`
-	Endpoint     string `json:"endpoint" binding:"required"`
-}
-
-func CreateOIDCConfigHandler(c *gin.Context) {
-	var req CreateOIDCConfigRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Store the OIDC configuration securely
-	auth.StoreOIDCConfig(req.ClientID, req.ClientSecret, req.CallbackURL, req.Endpoint)
-
-	c.JSON(http.StatusOK, gin.H{"message": "OIDC configuration created successfully"})
-}

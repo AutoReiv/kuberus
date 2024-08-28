@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"time"
 
-	"rbac/pkg/auth"
 	"rbac/pkg/handlers"
 	"rbac/pkg/handlers/rbac"
 	"rbac/pkg/middleware"
@@ -26,7 +25,7 @@ type Config struct {
 // NewConfig creates a new configuration with environment variables.
 func NewConfig() *Config {
 	port := os.Getenv("PORT")
-	if port == "" {
+	if (port == "") {
 		port = "8080"
 	}
 
@@ -50,9 +49,6 @@ func NewServer(clientset *kubernetes.Clientset, config *Config) *http.Server {
 	// Register routes
 	registerRoutes(r, clientset, config)
 
-	// Configure the OIDC provider
-	auth.ConfigureOIDCProvider()
-
 	// Create the HTTP server
 	srv := &http.Server{
 		Addr:         ":" + config.Port,
@@ -67,19 +63,15 @@ func NewServer(clientset *kubernetes.Clientset, config *Config) *http.Server {
 
 	return srv
 }
+
 // registerRoutes registers all the routes for the server.
 func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Config) {
 	// Admin account creation route
 	r.POST("/admin/create", handlers.CreateAdminHandler)
-
-	// OIDC configuration route (accessible only to admin)
-	r.POST("/admin/oidc-config", middleware.AuthMiddleware(config.IsDevMode), handlers.CreateOIDCConfigHandler)
-
+	
 	// Authentication routes
 	auth := r.Group("/auth")
 	auth.POST("/login", handlers.LoginHandler)
-	auth.GET("/login", handlers.OAuthLoginHandler)
-	auth.GET("/callback", handlers.OAuthCallbackHandler)
 
 	// Protected API routes
 	api := r.Group("/api")
@@ -104,6 +96,7 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Conf
 		c.JSON(http.StatusOK, gin.H{"message": "Welcome to the RBAC Manager"})
 	})
 }
+
 // handleGracefulShutdown handles the graceful shutdown of the server.
 func handleGracefulShutdown(srv *http.Server) {
 	go func() {
