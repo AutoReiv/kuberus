@@ -25,7 +25,7 @@ type Config struct {
 // NewConfig creates a new configuration with environment variables.
 func NewConfig() *Config {
 	port := os.Getenv("PORT")
-	if (port == "") {
+	if port == "" {
 		port = "8080"
 	}
 

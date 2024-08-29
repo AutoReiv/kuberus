@@ -1,6 +1,5 @@
 # Ignore certificate and key files
-cert.pem
-key.pem
+.env
 
 # Other common ignores
 *.log

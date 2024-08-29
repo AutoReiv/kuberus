@@ -6,10 +6,32 @@ import (
 	"os"
 	"rbac/pkg/kubernetes"
 	"rbac/pkg/server"
-	"rbac/pkg/utils"
+
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load environment variables from .env file
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
+
+	// Set Gin mode based on the environment variable
+	ginMode := os.Getenv("GIN_MODE")
+	if ginMode == "" {
+		ginMode = gin.DebugMode // Default to debug mode if not set
+	}
+	gin.SetMode(ginMode)
+
+	// Debug prints
+	log.Printf("DEV_MODE: %s", os.Getenv("DEV_MODE"))
+	log.Printf("CERT_FILE: %s", os.Getenv("CERT_FILE"))
+	log.Printf("KEY_FILE: %s", os.Getenv("KEY_FILE"))
+	log.Printf("PORT: %s", os.Getenv("PORT"))
+	log.Printf("GIN: %s", ginMode)
+
 	// Create Kubernetes clientset
 	clientset, err := kubernetes.NewClientset()
 	if err != nil {
@@ -19,22 +41,26 @@ func main() {
 	// Load server configuration
 	serverConfig := server.NewConfig()
 
-	// Paths to the certificate and key files
-	certFile := "cert.pem"
-	keyFile := "key.pem"
-
-	// Generate self-signed certificates if they do not exist
-	if _, err := os.Stat(certFile); os.IsNotExist(err) {
-		log.Println("Generating self-signed certificates...")
-		if err := utils.GenerateSelfSignedCert(certFile, keyFile); err != nil {
-			log.Fatalf("Error generating self-signed certificates: %v", err)
-		}
-	}
+	// Read certificate and key file paths from environment variables
+	certFile := os.Getenv("CERT_FILE")
+	keyFile := os.Getenv("KEY_FILE")
 
 	// Create and start the server
 	srv := server.NewServer(clientset, serverConfig)
 	log.Printf("Starting server on port %s", serverConfig.Port)
-	if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Server failed: %v", err)
+
+	if serverConfig.IsDevMode {
+		// In development mode, use HTTP
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed: %v", err)
+		}
+	} else {
+		// In production mode, use HTTPS
+		if certFile == "" || keyFile == "" {
+			log.Fatalf("CERT_FILE and KEY_FILE environment variables must be set in production mode")
+		}
+		if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed: %v", err)
+		}
 	}
 }
