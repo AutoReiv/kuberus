@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"html"
 	"regexp"
 	"unicode"
@@ -11,13 +9,6 @@ import (
 // SanitizeInput sanitizes the input string to prevent XSS attacks.
 func SanitizeInput(input string) string {
 	return html.EscapeString(input)
-}
-
-// GenerateSessionToken generates a secure random session token.
-func GenerateSessionToken() string {
-	tokenBytes := make([]byte, 32)
-	rand.Read(tokenBytes)
-	return base64.URLEncoding.EncodeToString(tokenBytes)
 }
 
 // IsStrongPassword checks if a password meets strength requirements.

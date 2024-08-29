@@ -1,0 +1,10 @@
+# Ignore certificate and key files
+.env
+
+# Other common ignores
+*.log
+*.tmp
+*.swp
+.DS_Store
+node_modules/
+vendor/

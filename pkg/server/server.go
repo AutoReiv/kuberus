@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"time"
 
-	"rbac/pkg/auth"
 	"rbac/pkg/handlers"
 	"rbac/pkg/handlers/rbac"
 	"rbac/pkg/middleware"
@@ -50,9 +49,6 @@ func NewServer(clientset *kubernetes.Clientset, config *Config) *http.Server {
 	// Register routes
 	registerRoutes(r, clientset, config)
 
-	// Configure the OIDC provider
-	auth.ConfigureOIDCProvider()
-
 	// Create the HTTP server
 	srv := &http.Server{
 		Addr:         ":" + config.Port,
@@ -72,15 +68,10 @@ func NewServer(clientset *kubernetes.Clientset, config *Config) *http.Server {
 func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Config) {
 	// Admin account creation route
 	r.POST("/admin/create", handlers.CreateAdminHandler)
-
-	// OIDC configuration route (accessible only to admin)
-	r.POST("/admin/oidc-config", middleware.AuthMiddleware(config.IsDevMode), handlers.SetupOIDCConfigHandler)
-
+	
 	// Authentication routes
 	auth := r.Group("/auth")
 	auth.POST("/login", handlers.LoginHandler)
-	auth.GET("/login", handlers.OAuthLoginHandler)
-	auth.GET("/callback", handlers.OAuthCallbackHandler)
 
 	// Protected API routes
 	api := r.Group("/api")
@@ -98,6 +89,11 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Conf
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
 		c.Status(http.StatusOK)
+	})
+
+	// Root URL handler
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "Welcome to the RBAC Manager"})
 	})
 }
 
