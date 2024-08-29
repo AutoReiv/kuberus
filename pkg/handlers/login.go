@@ -4,14 +4,8 @@ import (
 	"net/http"
 	"rbac/pkg/auth"
 	"rbac/pkg/utils"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/time/rate"
-)
-
-var (
-	limiter = rate.NewLimiter(1, 5) // Allow 1 request per second with a burst of 5
 )
 
 // LoginRequest represents the request payload for user login.
@@ -22,7 +16,7 @@ type LoginRequest struct {
 
 // LoginResponse represents the response payload for a successful login.
 type LoginResponse struct {
-	Message string `json:"message"`
+	Token string `json:"token"`
 }
 
 func LoginHandler(c *gin.Context) {
@@ -36,30 +30,18 @@ func LoginHandler(c *gin.Context) {
 	username := utils.SanitizeInput(req.Username)
 	password := utils.SanitizeInput(req.Password)
 
-	// Implement rate limiting to prevent brute-force attacks
-	if !limiter.Allow() {
-		c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many requests"})
-		return
-	}
-
 	// Authenticate user
 	if !auth.AuthenticateUser(username, password) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
-	// Generate and store secure session token
-	sessionToken := auth.GenerateSessionToken()
-	session := &auth.Session{
-		Username: username,
-		Token:    sessionToken,
-		ExpireAt: time.Now().Add(24 * time.Hour),
+	// Generate JWT token
+	token, err := auth.GenerateJWT(username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
 	}
-	auth.StoreSession(session)
 
-	// Set a secure cookie for session management
-	expiration := time.Now().Add(24 * time.Hour)
-	c.SetCookie("session_token", sessionToken, int(expiration.Unix()), "/", "", true, true)
-
-	c.JSON(http.StatusOK, LoginResponse{Message: "Login successful"})
+	c.JSON(http.StatusOK, LoginResponse{Token: token})
 }

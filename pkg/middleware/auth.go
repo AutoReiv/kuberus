@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"rbac/pkg/auth"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,28 +20,31 @@ func AuthMiddleware(isDevMode bool) gin.HandlerFunc {
 			return
 		}
 
-		// Retrieve the session token from the cookie
-		token, err := c.Cookie("session_token")
-		if err != nil {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			c.Abort()
 			return
 		}
 
-		// Validate the session token
-		if !isValidToken(token) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid session token"})
+		// Extract the token from the "Bearer " prefix
+		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+		if tokenStr == authHeader {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token format"})
 			c.Abort()
 			return
 		}
 
-		// Proceed to the next handler if the token is valid
+		claims, err := auth.ValidateJWT(tokenStr)
+		if err != nil {
+			fmt.Println("Token validation error:", err) // Debug statement
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.Abort()
+			return
+		}
+
+		// Store the username in the context
+		c.Set("username", claims.Username)
 		c.Next()
 	}
-}
-
-// isValidToken validates the session token.
-func isValidToken(token string) bool {
-	session, exists := auth.GetSession(token)
-	return exists && session != nil
 }
