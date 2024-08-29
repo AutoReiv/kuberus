@@ -49,18 +49,14 @@ func main() {
 	srv := server.NewServer(clientset, serverConfig)
 	log.Printf("Starting server on port %s", serverConfig.Port)
 
-	if serverConfig.IsDevMode {
-		// In development mode, use HTTP
+	if serverConfig.IsDevMode || certFile == "" || keyFile == "" {
+		// In development mode or if certs are not provided, use HTTP
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server failed: %v", err)
 		}
 	} else {
 		// In production mode, use HTTPS
-		if certFile == "" || keyFile == "" {
-			log.Fatalf("CERT_FILE and KEY_FILE environment variables must be set in production mode")
-		}
 		if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server failed: %v", err)
 		}
-	}
-}
+	}}
