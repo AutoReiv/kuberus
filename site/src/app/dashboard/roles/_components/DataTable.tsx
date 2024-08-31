@@ -78,24 +78,43 @@ import { toast } from "sonner";
 import { ResponsiveDialog } from "./ResponsiveDialog";
 import Link from "next/link";
 
+const badges = [
+  { name: "Create" },
+  { name: "Delete" },
+  { name: "Get" },
+  { name: "List" },
+  { name: "Patch" },
+  { name: "Update" },
+  { name: "Watch" },
+];
+
+const formSchema = z.object({
+  nameOfRole: z
+    .string()
+    .min(2, "Please have at least 2 characters in your name.")
+    .max(50, "50 characters is the max allowed"),
+  namespaceForRole: z.string().min(1, "Please select an option"),
+  badges: z.array(z.string()).refine((value) => value.some((item) => item), {
+    message: "You have to select at least one item.",
+  }),
+});
+
 export default function DataTable({ roles, namespace }) {
   const [data, setData] = useState(roles);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState({});
   const [createRoleDialogOpen, setCreateRoleDialogOpen] = useState(false);
-  const [deleteConfirmationDialog, setDeleteConfirmationDialog] =
-    useState(false);
+  const [deleteConfirmationDialog, setDeleteConfirmationDialog] = useState(false);
 
-  const badges = [
-    { name: "Create" },
-    { name: "Delete" },
-    { name: "Get" },
-    { name: "List" },
-    { name: "Patch" },
-    { name: "Update" },
-    { name: "Watch" },
-  ];
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      nameOfRole: "",
+      namespaceForRole: "",
+      badges: ["Create"],
+    },
+  });
 
   const yaml = require("js-yaml");
   const yamlText = `apiVersion: rbac.authorization.k8s.io/v1
@@ -335,26 +354,6 @@ rules:
       sorting,
       columnFilters,
       rowSelection,
-    },
-  });
-
-  const formSchema = z.object({
-    nameOfRole: z
-      .string()
-      .min(2, "Please have at least 2 characters in your name.")
-      .max(50, "50 characters is the max allowed"),
-    namespaceForRole: z.string().min(1, "Please select an option"),
-    badges: z.array(z.string()).refine((value) => value.some((item) => item), {
-      message: "You have to select at least one item.",
-    }),
-  });
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      nameOfRole: "",
-      namespaceForRole: "",
-      badges: ["Create"],
     },
   });
 
