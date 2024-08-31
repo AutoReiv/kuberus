@@ -10,7 +10,15 @@ var (
 	Mu          sync.Mutex
 	Users       = make(map[string]string)
 	AdminExists bool
+	Config      *OIDCConfig
 )
+// OIDCConfig represents the OIDC configuration.
+type OIDCConfig struct {
+	ClientID     string `json:"client_id" binding:"required"`
+	ClientSecret string `json:"client_secret" binding:"required"`
+	IssuerURL    string `json:"issuer_url" binding:"required"`
+	CallbackURL  string `json:"callback_url" binding:"required"`
+}
 
 // HashPassword hashes a plain text password.
 func HashPassword(password string) (string, error) {
@@ -35,4 +43,13 @@ func AuthenticateUser(username, password string) bool {
 	}
 
 	return CheckPasswordHash(password, hashedPassword)
+}
+
+// IsAdmin checks if a user is an admin.
+func IsAdmin(username string) bool {
+	Mu.Lock()
+	defer Mu.Unlock()
+
+	_, ok := Users[username]
+	return ok && AdminExists
 }

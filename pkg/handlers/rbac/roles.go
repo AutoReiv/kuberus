@@ -98,7 +98,7 @@ func handleUpdateRole(c *gin.Context, clientset *kubernetes.Clientset, namespace
 
 // handleDeleteRole handles deleting a role in a specific namespace.
 func handleDeleteRole(c *gin.Context, clientset *kubernetes.Clientset, namespace, name string) {
-	err := clientset.RbacV1().Roles(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	err := clientset.RbacV1().Roles(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		handleError(c, err, http.StatusInternalServerError)
 		return
@@ -163,4 +163,25 @@ type RoleDetailsResponse struct {
 // handleError sends an error response with the specified status code.
 func handleError(c *gin.Context, err error, statusCode int) {
 	c.JSON(statusCode, gin.H{"error": err.Error()})
+}
+
+// APIResourcesHandler handles retrieving all Kubernetes API resources.
+func APIResourcesHandler(clientset *kubernetes.Clientset) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		discoveryClient := clientset.Discovery()
+		apiResources, err := discoveryClient.ServerPreferredResources()
+		if err != nil {
+			handleError(c, err, http.StatusInternalServerError)
+			return
+		}
+
+		var resources []string
+		for _, resourceList := range apiResources {
+			for _, resource := range resourceList.APIResources {
+				resources = append(resources, resource.Name)
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{"resources": resources})
+	}
 }
