@@ -44,6 +44,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface Resources {
+  [key: string]: string[];
+}
 
 interface RoleDetails {
   role: {
@@ -87,7 +98,9 @@ interface RoleDetails {
 }
 
 const newRuleSchema = z.object({
-  resources: z.string().min(1, "Resources are required"),
+  resources: z.array(z.string()).refine((value) => value.some((item) => item), {
+    message: "You have to select at least one item.",
+  }),
   verbs: z.array(z.string()).refine((value) => value.some((item) => item), {
     message: "You have to select at least one item.",
   }),
@@ -114,13 +127,26 @@ const fetchRoleDetails = async (namespace: string, name: string) => {
       "Content-Type": "application/json",
     },
   });
-  if (!response.ok) {
-    throw new Error("Failed to fetch role details");
-  }
+
   const data = await response.json();
   console.log(data, " DATA ****");
   return data;
 };
+
+const fetchResources = async () => {
+  const URL = `http://localhost:8080/api/resources`;
+  const response = await fetch(URL, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+  });
+
+  const data = await response.json();
+  return data;
+};
+
 
 const RoleDetailsPage = ({
   params,
@@ -133,8 +159,8 @@ const RoleDetailsPage = ({
   const form = useForm<NewRuleFormValues>({
     resolver: zodResolver(newRuleSchema),
     defaultValues: {
-      resources: "",
-      verbs: ["create"],
+      resources: [""],
+      verbs: ["Create"],
     },
   });
 
@@ -146,6 +172,14 @@ const RoleDetailsPage = ({
     queryKey: ["roleDetails", namespace, name],
     queryFn: () => fetchRoleDetails(namespace, name),
   });
+
+  const {
+    data: resources,
+  } = useQuery<Resources,Error>({
+    queryKey: ["resources"],
+    queryFn: () => fetchResources(),
+  });
+
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -400,14 +434,25 @@ const RoleDetailsPage = ({
                               name="resources"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Resources</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      placeholder="e.g. pods, services"
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
+                                  <Select onValueChange={field.onChange}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select verbs" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    {/* Look into duplicate 'event' name in array */}
+                                    <SelectContent>
+                                      {resources.resources.map((resource, index) => (
+                                        <SelectItem
+                                          key={index}
+                                          value={resource}
+                                        >
+                                          {resource}
+                                        </SelectItem>
+                                      ))}
+                                      
+                                    </SelectContent>
+                                  </Select>
                                 </FormItem>
                               )}
                             />
