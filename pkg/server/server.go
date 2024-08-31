@@ -93,7 +93,8 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Conf
 	api.GET("/clusterroles/details", rbac.ClusterRoleDetailsHandler(clientset))
 	api.POST("/clusterroles", rbac.ClusterRolesHandler(clientset))
 	api.GET("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
-
+	api.GET("/resources", rbac.APIResourcesHandler(clientset))
+	
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
 		c.Status(http.StatusOK)
