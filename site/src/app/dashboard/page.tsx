@@ -1,4 +1,4 @@
-'use client';
+"use client";
 const Dashboard = ({
   children,
 }: Readonly<{
@@ -8,7 +8,7 @@ const Dashboard = ({
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       {children}
     </div>
-  )
-}
+  );
+};
 
-export default Dashboard
+export default Dashboard;

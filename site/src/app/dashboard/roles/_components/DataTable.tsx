@@ -76,6 +76,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ResponsiveDialog } from "./ResponsiveDialog";
+import Link from "next/link";
 
 export default function DataTable({ roles, namespace }) {
   const [data, setData] = useState(roles);
@@ -146,13 +147,14 @@ rules:
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        cookie: "session_token=eb1b485f-af8b-4631-9708-a87562ea6806",
       },
+      credentials: "include",
       body: isForm ? JSON.stringify(formPayload) : jsonText,
     });
 
     const newRole = await response.json();
     setData((prevData) => [...prevData, newRole]);
-    console.log(newRole);
     setCreateRoleDialogOpen(false);
     toast(
       <div className="flex items-center justify-start gap-4">
@@ -198,7 +200,7 @@ rules:
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}  
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
         />
       ),
@@ -219,6 +221,18 @@ rules:
         );
       },
       accessorKey: "metadata.name",
+      cell: ({ row }) => {
+        const name = row.getValue("name") as string;
+        const namespace = row.original.metadata.namespace;
+        return (
+          <Link
+            href={`/dashboard/roles/${namespace}/${name}`}
+            className="hover:underline"
+          >
+            {name}
+          </Link>
+        );
+      },
     },
     {
       header: ({ column }) => {
