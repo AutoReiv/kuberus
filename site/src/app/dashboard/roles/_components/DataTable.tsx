@@ -185,7 +185,7 @@ rules:
 
   const deleteRole = async (namespace, name) => {
     const URL = `http://localhost:8080/api/roles?namespace=${namespace}&name=${name}`;
-    await fetch(URL, {
+    const response = await fetch(URL, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
@@ -196,12 +196,14 @@ rules:
       prevData.filter((role) => role.metadata.name !== name)
     );
 
-    toast(
-      <div className="flex items-center justify-start gap-4">
-        <CheckCircle2 className="text-green-500" />
-        <span>{`Successfully deleted ${name} in the ${namespace} namespace.`}</span>
-      </div>
-    );
+    if (!response.ok) {
+      toast(
+        <div className="flex items-center justify-start gap-4">
+          <CheckCircle2 className="text-green-500" />
+          <span>{`Successfully deleted ${name} in the ${namespace} namespace.`}</span>
+        </div>
+      );
+    }
 
     setDeleteConfirmationDialog(false);
   };
