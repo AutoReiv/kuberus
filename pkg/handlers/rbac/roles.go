@@ -164,24 +164,23 @@ type RoleDetailsResponse struct {
 func handleError(c *gin.Context, err error, statusCode int) {
 	c.JSON(statusCode, gin.H{"error": err.Error()})
 }
+		// APIResourcesHandler handles retrieving all Kubernetes API resources.
+		func APIResourcesHandler(clientset *kubernetes.Clientset) gin.HandlerFunc {
+			return func(c *gin.Context) {
+				discoveryClient := clientset.Discovery()
+				apiResources, err := discoveryClient.ServerPreferredResources()
+				if err != nil {
+					handleError(c, err, http.StatusInternalServerError)
+					return
+				}
 
-// APIResourcesHandler handles retrieving all Kubernetes API resources.
-func APIResourcesHandler(clientset *kubernetes.Clientset) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		discoveryClient := clientset.Discovery()
-		apiResources, err := discoveryClient.ServerPreferredResources()
-		if err != nil {
-			handleError(c, err, http.StatusInternalServerError)
-			return
-		}
+				var resources []string
+				for _, resourceList := range apiResources {
+					for _, resource := range resourceList.APIResources {
+						resources = append(resources, resource.Name+" ("+resourceList.GroupVersion+")")
+					}
+				}
 
-		var resources []string
-		for _, resourceList := range apiResources {
-			for _, resource := range resourceList.APIResources {
-				resources = append(resources, resource.Name)
+				c.JSON(http.StatusOK, gin.H{"resources": resources})
 			}
 		}
-
-		c.JSON(http.StatusOK, gin.H{"resources": resources})
-	}
-}
