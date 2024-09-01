@@ -40,10 +40,22 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface Resources {
+  [key: string]: string[];
+}
 
 interface RoleDetails {
   role: {
@@ -87,7 +99,7 @@ interface RoleDetails {
 }
 
 const newRuleSchema = z.object({
-  resources: z.string().min(1, "Resources are required"),
+  resources: z.string().min(1, "You must select a resource"),
   verbs: z.array(z.string()).refine((value) => value.some((item) => item), {
     message: "You have to select at least one item.",
   }),
@@ -114,11 +126,23 @@ const fetchRoleDetails = async (namespace: string, name: string) => {
       "Content-Type": "application/json",
     },
   });
-  if (!response.ok) {
-    throw new Error("Failed to fetch role details");
-  }
+
   const data = await response.json();
   console.log(data, " DATA ****");
+  return data;
+};
+
+const fetchResources = async () => {
+  const URL = `http://localhost:8080/api/resources`;
+  const response = await fetch(URL, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+  });
+
+  const data = await response.json();
   return data;
 };
 
@@ -134,7 +158,7 @@ const RoleDetailsPage = ({
     resolver: zodResolver(newRuleSchema),
     defaultValues: {
       resources: "",
-      verbs: ["create"],
+      verbs: ["Create"],
     },
   });
 
@@ -147,6 +171,11 @@ const RoleDetailsPage = ({
     queryFn: () => fetchRoleDetails(namespace, name),
   });
 
+  const { data: resources } = useQuery<Resources, Error>({
+    queryKey: ["resources"],
+    queryFn: () => fetchResources(),
+  });
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -155,99 +184,44 @@ const RoleDetailsPage = ({
     return <div>Error: {error.message}</div>;
   }
 
-  const onSubmit = (data: NewRuleFormValues) => {
-    console.log(data);
+  const onSubmit = async (data: NewRuleFormValues) => {
+    const roleData = {
+      metadata: {
+        name: name,
+        namespace: namespace,
+      },
+      rules: [
+        {
+          apiGroups: [],
+          resources: data.resources,
+          resourceNames: [],
+          verbs: data.verbs,
+        },
+      ],
+    };
+
+    const json = JSON.stringify(roleData);
+    console.log(json, " JSON ****");
+    console.log(JSON.parse(json), " JSON parse ****");
+
+    const URL = `http://localhost:8080/api/roles?namespace=${namespace}&name=${name}`;
+    const response = await fetch(URL, {
+      method: "PUT",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(roleData),
+    });
+
+    const data2 = await response.json();
+    console.log(data2, " DATA ****");
     setIsDialogOpen(false);
     form.reset();
   };
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      {/* <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
-        <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
-          <Link
-            href="#"
-            className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
-          >
-            <Package2 className="h-4 w-4 transition-all group-hover:scale-110" />
-            <span className="sr-only">Acme Inc</span>
-          </Link>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href="#"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-              >
-                <Home className="h-5 w-5" />
-                <span className="sr-only">Dashboard</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Dashboard</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href="#"
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-              >
-                <ShoppingCart className="h-5 w-5" />
-                <span className="sr-only">Orders</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Orders</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href="#"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-              >
-                <Package className="h-5 w-5" />
-                <span className="sr-only">Products</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Products</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href="#"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-              >
-                <Users2 className="h-5 w-5" />
-                <span className="sr-only">Customers</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Customers</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href="#"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-              >
-                <LineChart className="h-5 w-5" />
-                <span className="sr-only">Analytics</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Analytics</TooltipContent>
-          </Tooltip>
-        </nav>
-        <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href="#"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-              >
-                <Settings className="h-5 w-5" />
-                <span className="sr-only">Settings</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Settings</TooltipContent>
-          </Tooltip>
-        </nav>
-      </aside> */}
       <div className="flex flex-col sm:gap-4">
         <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 md:gap-8 lg:grid-cols-3 xl:grid-cols-3">
           <div>
@@ -303,27 +277,6 @@ const RoleDetailsPage = ({
                   <Separator></Separator>
                 </div>
               </CardContent>
-              {/* <CardFooter className="flex flex-row items-center border-t bg-muted/50 px-6 py-3">
-                <div className="text-xs text-muted-foreground">
-                  Updated <time dateTime="2023-11-23">November 23, 2023</time>
-                </div>
-                <Pagination className="ml-auto mr-0 w-auto">
-                  <PaginationContent>
-                    <PaginationItem>
-                      <Button size="icon" variant="outline" className="h-6 w-6">
-                        <ChevronLeft className="h-3.5 w-3.5" />
-                        <span className="sr-only">Previous Order</span>
-                      </Button>
-                    </PaginationItem>
-                    <PaginationItem>
-                      <Button size="icon" variant="outline" className="h-6 w-6">
-                        <ChevronRight className="h-3.5 w-3.5" />
-                        <span className="sr-only">Next Order</span>
-                      </Button>
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </CardFooter> */}
             </Card>
           </div>
           <div className="grid auto-rows-max items-start gap-4 md:gap-8 lg:col-span-2">
@@ -334,41 +287,6 @@ const RoleDetailsPage = ({
                   <TabsTrigger value="month">Month</TabsTrigger>
                   <TabsTrigger value="year">Year</TabsTrigger>
                 </TabsList>
-                {/* <div className="ml-auto flex items-center gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 gap-1 text-sm"
-                      >
-                        <ListFilter className="h-3.5 w-3.5" />
-                        <span className="sr-only sm:not-sr-only">Filter</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Filter by</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuCheckboxItem checked>
-                        Fulfilled
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem>
-                        Declined
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem>
-                        Refunded
-                      </DropdownMenuCheckboxItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 gap-1 text-sm"
-                  >
-                    <File className="h-3.5 w-3.5" />
-                    <span className="sr-only sm:not-sr-only">Export</span>
-                  </Button>
-                </div> */}
               </div>
               <TabsContent value="week">
                 <Card x-chunk="dashboard-05-chunk-3">
@@ -401,12 +319,29 @@ const RoleDetailsPage = ({
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Resources</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      placeholder="e.g. pods, services"
-                                      {...field}
-                                    />
-                                  </FormControl>
+                                  <Select
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select a resource" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {resources.resources.map((resource) => (
+                                        <SelectItem
+                                          key={resource}
+                                          value={resource}
+                                        >
+                                          {resource}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormDescription>
+                                    Choose the resource for this rule.
+                                  </FormDescription>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -459,7 +394,7 @@ const RoleDetailsPage = ({
                                 </FormItem>
                               )}
                             />
-                            <Button type="submit">Add Rule</Button>
+                            <Button type="submit">Submit</Button>
                           </form>
                         </Form>
                       </DialogContent>
