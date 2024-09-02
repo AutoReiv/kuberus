@@ -89,25 +89,29 @@ func OIDCAuthHandler(c *gin.Context) {
 func OIDCCallbackHandler(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Code not found"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
 
+	// Log the authorization code for debugging
+	log.Printf("Authorization code: %s", code)
+
 	oauth2Token, err := oauth2Config.Exchange(context.Background(), code)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to exchange token: " + err.Error()})
+		log.Printf("Failed to exchange token: %v", err) // Log the error for debugging
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed"})
 		return
 	}
 
 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "No id_token field in oauth2 token"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed"})
 		return
 	}
 
 	idToken, err := verifier.Verify(context.Background(), rawIDToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to verify ID token: " + err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed"})
 		return
 	}
 
@@ -115,14 +119,14 @@ func OIDCCallbackHandler(c *gin.Context) {
 		Email string `json:"email"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to parse ID token claims: " + err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed"})
 		return
 	}
 
 	// Here you can create a session for the user or generate a JWT token
 	token, err := auth.GenerateJWT(claims.Email)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
