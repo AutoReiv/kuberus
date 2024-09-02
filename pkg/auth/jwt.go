@@ -1,14 +1,28 @@
 package auth
 
 import (
-	"os"
+	"crypto/rand"
 	"time"
 
 	"github.com/golang-jwt/jwt"
 )
 
+var jwtKey []byte
 
-var jwtKey = []byte(os.Getenv("JWT_SECRET_KEY"))
+// Initialize the JWT secret key
+func init() {
+	jwtKey = generateRandomKey(32) // 32 bytes for HS256
+}
+
+// generateRandomKey generates a secure random key of the specified length
+func generateRandomKey(length int) []byte {
+	key := make([]byte, length)
+	_, err := rand.Read(key)
+	if err != nil {
+		panic("Failed to generate random key: " + err.Error())
+	}
+	return key
+}
 
 // Claims defines the structure of the JWT claims
 type Claims struct {
