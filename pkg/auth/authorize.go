@@ -12,6 +12,7 @@ var (
 	AdminExists bool
 	Config      *OIDCConfig
 )
+
 // OIDCConfig represents the OIDC configuration.
 type OIDCConfig struct {
 	ClientID     string `json:"client_id" binding:"required"`

@@ -8,9 +8,7 @@ import (
 	"rbac/pkg/server"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
-	"github.com/markbates/goth/gothic"
 )
 
 func main() {
@@ -42,9 +40,6 @@ func main() {
 
 	// Load server configuration
 	serverConfig := server.NewConfig()
-
-	// Set the session secret for Goth
-	gothic.Store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_SECRET")))
 
 	// Read certificate and key file paths from environment variables
 	certFile := os.Getenv("CERT_FILE")

@@ -1,13 +1,20 @@
 package handlers
 
 import (
+	"context"
+	"log"
 	"net/http"
 	"rbac/pkg/auth"
 
+	"github.com/coreos/go-oidc"
 	"github.com/gin-gonic/gin"
-	"github.com/markbates/goth"
-	"github.com/markbates/goth/gothic"
-	"github.com/markbates/goth/providers/openidConnect"
+	"golang.org/x/oauth2"
+)
+
+var (
+	oidcProvider *oidc.Provider
+	oauth2Config *oauth2.Config
+	verifier     *oidc.IDTokenVerifier
 )
 
 // OIDCConfig represents the OIDC configuration.
@@ -33,6 +40,9 @@ func SetOIDCConfigHandler(c *gin.Context) {
 		return
 	}
 
+	// Log the OIDC configuration for debugging
+	log.Printf("Setting OIDC Config: %+v", config)
+
 	// Store the OIDC configuration (in-memory for simplicity)
 	auth.Mu.Lock()
 	auth.Config = &auth.OIDCConfig{
@@ -43,12 +53,23 @@ func SetOIDCConfigHandler(c *gin.Context) {
 	}
 	auth.Mu.Unlock()
 
-	provider, err := openidConnect.New(config.ClientID, config.ClientSecret, config.CallbackURL, config.IssuerURL, "openid-connect")
+	var err error
+	oidcProvider, err = oidc.NewProvider(context.Background(), config.IssuerURL)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create OIDC provider: " + err.Error()})
 		return
 	}
-	goth.UseProviders(provider)
+
+	oauth2Config = &oauth2.Config{
+		ClientID:     config.ClientID,
+		ClientSecret: config.ClientSecret,
+		Endpoint:     oidcProvider.Endpoint(),
+		RedirectURL:  config.CallbackURL,
+		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+	}
+
+	verifier = oidcProvider.Verifier(&oidc.Config{ClientID: config.ClientID})
+	c.JSON(http.StatusOK, gin.H{"message": "OIDC configuration set successfully"})
 }
 
 // OIDCAuthHandler handles the OIDC authentication flow.
@@ -59,25 +80,47 @@ func OIDCAuthHandler(c *gin.Context) {
 		return
 	}
 
-	// Set the provider name to "openid-connect"
-	query := c.Request.URL.Query()
-	query.Set("provider", "openid-connect")
-	c.Request.URL.RawQuery = query.Encode()
-
-	// Begin the authentication handler
-	gothic.BeginAuthHandler(c.Writer, c.Request)
+	state := "random" // You should generate a random state string for security
+	authURL := oauth2Config.AuthCodeURL(state)
+	c.Redirect(http.StatusFound, authURL)
 }
 
 // OIDCCallbackHandler handles the OIDC callback.
 func OIDCCallbackHandler(c *gin.Context) {
-	user, err := gothic.CompleteUserAuth(c.Writer, c.Request)
+	code := c.Query("code")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Code not found"})
+		return
+	}
+
+	oauth2Token, err := oauth2Config.Exchange(context.Background(), code)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to complete OIDC authentication: " + err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to exchange token: " + err.Error()})
+		return
+	}
+
+	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No id_token field in oauth2 token"})
+		return
+	}
+
+	idToken, err := verifier.Verify(context.Background(), rawIDToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to verify ID token: " + err.Error()})
+		return
+	}
+
+	var claims struct {
+		Email string `json:"email"`
+	}
+	if err := idToken.Claims(&claims); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to parse ID token claims: " + err.Error()})
 		return
 	}
 
 	// Here you can create a session for the user or generate a JWT token
-	token, err := auth.GenerateJWT(user.Email)
+	token, err := auth.GenerateJWT(claims.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token: " + err.Error()})
 		return

@@ -105,6 +105,7 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Conf
 		c.JSON(http.StatusOK, gin.H{"message": "Welcome to the RBAC Manager"})
 	})
 }
+
 // handleGracefulShutdown handles the graceful shutdown of the server.
 func handleGracefulShutdown(srv *http.Server) {
 	go func() {
