@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const Roles = () => {
   // Get Roles
-  const { data: roles , isPending: isPendingRoles, isError: isErrorRoles } = useQuery({
+  const { data: roles , isPending: isPendingRoles } = useQuery({
     queryKey: ["roles"],
     queryFn: async () => {
       const URL = "http://localhost:8080/api/roles?namespace=all";
@@ -17,6 +17,7 @@ const Roles = () => {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
+        credentials: "include",
       });
       const data = await response.json();
       return data;
@@ -24,7 +25,7 @@ const Roles = () => {
   }); 
 
   // Get namespaces
-  const { data: namespace, isError: isErrorNamespace } = useQuery({
+  const { data: namespace } = useQuery({
     queryKey: ["namespace"],
     queryFn: async () => {
       const URL = "http://localhost:8080/api/namespaces";
