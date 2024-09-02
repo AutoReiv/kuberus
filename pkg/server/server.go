@@ -88,13 +88,23 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Conf
 	api.GET("/roles", rbac.RolesHandler(clientset))
 	api.GET("/roles/details", rbac.RoleDetailsHandler(clientset))
 	api.POST("/roles", rbac.RolesHandler(clientset))
+	api.PUT("/roles", rbac.RolesHandler(clientset))
+	api.DELETE("/roles", rbac.RolesHandler(clientset))
 	api.GET("/rolebindings", rbac.RoleBindingsHandler(clientset))
+	api.POST("/rolebindings", rbac.RoleBindingsHandler(clientset))
+	api.PUT("/rolebindings", rbac.RoleBindingsHandler(clientset))
+	api.DELETE("/rolebindings", rbac.RoleBindingsHandler(clientset))
 	api.GET("/clusterroles", rbac.ClusterRolesHandler(clientset))
 	api.GET("/clusterroles/details", rbac.ClusterRoleDetailsHandler(clientset))
 	api.POST("/clusterroles", rbac.ClusterRolesHandler(clientset))
+	api.PUT("/clusterroles", rbac.ClusterRolesHandler(clientset))
+	api.DELETE("/clusterroles", rbac.ClusterRolesHandler(clientset))
 	api.GET("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
+	api.POST("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
+	api.PUT("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
+	api.DELETE("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
 	api.GET("/resources", rbac.APIResourcesHandler(clientset))
-	
+
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
 		c.Status(http.StatusOK)
