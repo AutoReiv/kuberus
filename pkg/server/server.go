@@ -75,15 +75,15 @@ func registerRoutes(mux *http.ServeMux, clientset *kubernetes.Clientset, config 
 
 	// Protected API routes
 	apiMux := http.NewServeMux()
-	apiMux.HandleFunc("/namespaces", rbac.NamespacesHandler(clientset))
-	apiMux.HandleFunc("/roles", rbac.RolesHandler(clientset))
-	apiMux.HandleFunc("/roles/details", rbac.RoleDetailsHandler(clientset))
-	apiMux.HandleFunc("/rolebindings", rbac.RoleBindingsHandler(clientset))
-	apiMux.HandleFunc("/clusterroles", rbac.ClusterRolesHandler(clientset))
-	apiMux.HandleFunc("/clusterroles/details", rbac.ClusterRoleDetailsHandler(clientset))
-	apiMux.HandleFunc("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
-	apiMux.HandleFunc("/resources", rbac.APIResourcesHandler(clientset))
-	apiMux.HandleFunc("/serviceaccounts", rbac.ServiceAccountsHandler(clientset))
+	apiMux.HandleFunc("/api/namespaces", rbac.NamespacesHandler(clientset))
+	apiMux.HandleFunc("/api/roles", rbac.RolesHandler(clientset))
+	apiMux.HandleFunc("/api/roles/details", rbac.RoleDetailsHandler(clientset))
+	apiMux.HandleFunc("/api/rolebindings", rbac.RoleBindingsHandler(clientset))
+	apiMux.HandleFunc("/api/clusterroles", rbac.ClusterRolesHandler(clientset))
+	apiMux.HandleFunc("/api/clusterroles/details", rbac.ClusterRoleDetailsHandler(clientset))
+	apiMux.HandleFunc("/api/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
+	apiMux.HandleFunc("/api/resources", rbac.APIResourcesHandler(clientset))
+	apiMux.HandleFunc("/api/serviceaccounts", rbac.ServiceAccountsHandler(clientset))
 
 	mux.Handle("/api/", middleware.AuthMiddleware(apiMux, config.IsDevMode))
 
