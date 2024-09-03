@@ -23,7 +23,7 @@ func ClusterRoleBindingsHandler(clientset *kubernetes.Clientset) http.HandlerFun
 		case http.MethodDelete:
 			handleDeleteClusterRoleBinding(w, clientset, r.URL.Query().Get("name"))
 		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }

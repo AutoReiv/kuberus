@@ -20,7 +20,9 @@ func ApplyMiddlewares(handler http.Handler, isDevMode bool) http.Handler {
 	if isDevMode {
 		log.Println("Development mode: Applying middlewares")
 	}
-	return loggingMiddleware(recoveryMiddleware(secureHeadersMiddleware(handler)))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		loggingMiddleware(recoveryMiddleware(secureHeadersMiddleware(handler))).ServeHTTP(w, r)
+	})
 }
 
 // loggingMiddleware logs the details of each HTTP request.

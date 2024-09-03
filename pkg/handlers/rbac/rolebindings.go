@@ -27,7 +27,8 @@ func RoleBindingsHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 		case http.MethodDelete:
 			handleDeleteRoleBinding(w, clientset, namespace, r.URL.Query().Get("name"))
 		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
+
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }

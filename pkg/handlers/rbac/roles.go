@@ -29,7 +29,7 @@ func RolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 		case http.MethodDelete:
 			handleDeleteRole(w, clientset, namespace, r.URL.Query().Get("name"))
 		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
