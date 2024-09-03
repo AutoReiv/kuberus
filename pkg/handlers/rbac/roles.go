@@ -2,134 +2,140 @@ package rbac
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"rbac/pkg/utils"
 
-	"github.com/gin-gonic/gin"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // RolesHandler handles role-related requests.
-func RolesHandler(clientset *kubernetes.Clientset) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		namespace := c.Query("namespace")
+func RolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		namespace := r.URL.Query().Get("namespace")
 		if namespace == "" {
 			namespace = "default"
 		}
 
-		switch c.Request.Method {
+		switch r.Method {
 		case http.MethodGet:
-			handleGetRoles(c, clientset, namespace)
+			handleGetRoles(w, clientset, namespace)
 		case http.MethodPost:
-			handleCreateRole(c, clientset, namespace)
+			handleCreateRole(w, r, clientset, namespace)
 		case http.MethodPut:
-			handleUpdateRole(c, clientset, namespace)
+			handleUpdateRole(w, r, clientset, namespace)
 		case http.MethodDelete:
-			handleDeleteRole(c, clientset, namespace, c.Query("name"))
+			handleDeleteRole(w, clientset, namespace, r.URL.Query().Get("name"))
 		default:
-			c.Status(http.StatusMethodNotAllowed)
+			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}
 }
 
 // handleGetRoles handles listing roles in a specific namespace or across all namespaces.
-func handleGetRoles(c *gin.Context, clientset *kubernetes.Clientset, namespace string) {
+func handleGetRoles(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace string) {
 	if namespace == "all" {
-		listAllNamespacesRoles(c, clientset)
+		listAllNamespacesRoles(w, clientset)
 	} else {
-		listNamespaceRoles(c, clientset, namespace)
+		listNamespaceRoles(w, clientset, namespace)
 	}
 }
 
 // listNamespaceRoles lists roles in a specific namespace.
-func listNamespaceRoles(c *gin.Context, clientset *kubernetes.Clientset, namespace string) {
+func listNamespaceRoles(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace string) {
 	roles, err := clientset.RbacV1().Roles(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		handleError(c, err, http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	c.JSON(http.StatusOK, roles)
+	utils.WriteJSON(w, roles)
 }
 
 // listAllNamespacesRoles lists roles across all namespaces.
-func listAllNamespacesRoles(c *gin.Context, clientset *kubernetes.Clientset) {
+func listAllNamespacesRoles(w http.ResponseWriter, clientset *kubernetes.Clientset) {
 	roles, err := clientset.RbacV1().Roles("").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		handleError(c, err, http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	c.JSON(http.StatusOK, roles)
+	utils.WriteJSON(w, roles)
 }
 
 // handleCreateRole handles creating a new role in a specific namespace.
-func handleCreateRole(c *gin.Context, clientset *kubernetes.Clientset, namespace string) {
+func handleCreateRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset, namespace string) {
 	var role rbacv1.Role
-	if err := c.ShouldBindJSON(&role); err != nil {
-		handleError(c, err, http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&role); err != nil {
+		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	createdRole, err := clientset.RbacV1().Roles(namespace).Create(context.TODO(), &role, metav1.CreateOptions{})
 	if err != nil {
-		handleError(c, err, http.StatusInternalServerError)
+		http.Error(w, "Failed to create role: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, createdRole)
+	utils.WriteJSON(w, createdRole)
 }
 
 // handleUpdateRole handles updating an existing role in a specific namespace.
-func handleUpdateRole(c *gin.Context, clientset *kubernetes.Clientset, namespace string) {
+func handleUpdateRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset, namespace string) {
 	var role rbacv1.Role
-	if err := c.ShouldBindJSON(&role); err != nil {
-		handleError(c, err, http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&role); err != nil {
+		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	updatedRole, err := clientset.RbacV1().Roles(namespace).Update(context.TODO(), &role, metav1.UpdateOptions{})
 	if err != nil {
-		handleError(c, err, http.StatusInternalServerError)
+		http.Error(w, "Failed to update role: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, updatedRole)
+	utils.WriteJSON(w, updatedRole)
 }
 
 // handleDeleteRole handles deleting a role in a specific namespace.
-func handleDeleteRole(c *gin.Context, clientset *kubernetes.Clientset, namespace, name string) {
-	err := clientset.RbacV1().Roles(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if err != nil {
-		handleError(c, err, http.StatusInternalServerError)
+func handleDeleteRole(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace, name string) {
+	if name == "" {
+		http.Error(w, "Role name is required", http.StatusBadRequest)
 		return
 	}
-	c.Status(http.StatusNoContent)
+
+	err := clientset.RbacV1().Roles(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		http.Error(w, "Failed to delete role: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // RoleDetailsHandler handles fetching detailed information about a specific role.
-func RoleDetailsHandler(clientset *kubernetes.Clientset) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		getRoleDetails(c, clientset)
+func RoleDetailsHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		getRoleDetails(w, r, clientset)
 	}
 }
 
 // getRoleDetails fetches detailed information about a specific role.
-func getRoleDetails(c *gin.Context, clientset *kubernetes.Clientset) {
-	roleName := c.Query("roleName")
-	namespace := c.Query("namespace")
+func getRoleDetails(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset) {
+	roleName := r.URL.Query().Get("roleName")
+	namespace := r.URL.Query().Get("namespace")
 	if namespace == "" {
 		namespace = "default"
 	}
 
 	role, err := clientset.RbacV1().Roles(namespace).Get(context.TODO(), roleName, metav1.GetOptions{})
 	if err != nil {
-		handleError(c, err, http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	roleBindings, err := clientset.RbacV1().RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		handleError(c, err, http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -140,7 +146,7 @@ func getRoleDetails(c *gin.Context, clientset *kubernetes.Clientset) {
 		RoleBindings: associatedBindings,
 	}
 
-	c.JSON(http.StatusOK, response)
+	utils.WriteJSON(w, response)
 }
 
 // filterRoleBindings filters role bindings associated with a specific role.
@@ -159,28 +165,3 @@ type RoleDetailsResponse struct {
 	Role         *rbacv1.Role         `json:"role"`
 	RoleBindings []rbacv1.RoleBinding `json:"roleBindings"`
 }
-
-// handleError sends an error response with the specified status code.
-func handleError(c *gin.Context, err error, statusCode int) {
-	c.JSON(statusCode, gin.H{"error": err.Error()})
-}
-		// APIResourcesHandler handles retrieving all Kubernetes API resources.
-		func APIResourcesHandler(clientset *kubernetes.Clientset) gin.HandlerFunc {
-			return func(c *gin.Context) {
-				discoveryClient := clientset.Discovery()
-				apiResources, err := discoveryClient.ServerPreferredResources()
-				if err != nil {
-					handleError(c, err, http.StatusInternalServerError)
-					return
-				}
-
-				var resources []string
-				for _, resourceList := range apiResources {
-					for _, resource := range resourceList.APIResources {
-						resources = append(resources, resource.Name+" ("+resourceList.GroupVersion+")")
-					}
-				}
-
-				c.JSON(http.StatusOK, gin.H{"resources": resources})
-			}
-		}

@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"rbac/pkg/auth"
+	"rbac/pkg/utils"
 
 	"github.com/coreos/go-oidc"
-	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 )
 
@@ -26,17 +27,22 @@ type OIDCConfig struct {
 }
 
 // SetOIDCConfigHandler allows an admin to set the OIDC configuration.
-func SetOIDCConfigHandler(c *gin.Context) {
+func SetOIDCConfigHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	// Ensure the user is an admin
-	username, exists := c.Get("username")
-	if !exists || !auth.IsAdmin(username.(string)) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+	username := r.Context().Value("username").(string)
+	if !auth.IsAdmin(username) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
 	var config OIDCConfig
-	if err := c.ShouldBindJSON(&config); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -56,7 +62,7 @@ func SetOIDCConfigHandler(c *gin.Context) {
 	var err error
 	oidcProvider, err = oidc.NewProvider(context.Background(), config.IssuerURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create OIDC provider: " + err.Error()})
+		http.Error(w, "Failed to create OIDC provider: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -69,27 +75,37 @@ func SetOIDCConfigHandler(c *gin.Context) {
 	}
 
 	verifier = oidcProvider.Verifier(&oidc.Config{ClientID: config.ClientID})
-	c.JSON(http.StatusOK, gin.H{"message": "OIDC configuration set successfully"})
+	utils.WriteJSON(w, map[string]string{"message": "OIDC configuration set successfully"})
 }
 
 // OIDCAuthHandler handles the OIDC authentication flow.
-func OIDCAuthHandler(c *gin.Context) {
+func OIDCAuthHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	// Check if the OIDC configuration is set
 	if auth.Config == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "OIDC configuration not set"})
+		http.Error(w, "OIDC configuration not set", http.StatusBadRequest)
 		return
 	}
 
 	state := "random" // You should generate a random state string for security
 	authURL := oauth2Config.AuthCodeURL(state)
-	c.Redirect(http.StatusFound, authURL)
+	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
 // OIDCCallbackHandler handles the OIDC callback.
-func OIDCCallbackHandler(c *gin.Context) {
-	code := c.Query("code")
+func OIDCCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	code := r.URL.Query().Get("code")
 	if code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
@@ -99,19 +115,19 @@ func OIDCCallbackHandler(c *gin.Context) {
 	oauth2Token, err := oauth2Config.Exchange(context.Background(), code)
 	if err != nil {
 		log.Printf("Failed to exchange token: %v", err) // Log the error for debugging
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed"})
+		http.Error(w, "Authentication failed", http.StatusUnauthorized)
 		return
 	}
 
 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed"})
+		http.Error(w, "Authentication failed", http.StatusUnauthorized)
 		return
 	}
 
 	idToken, err := verifier.Verify(context.Background(), rawIDToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed"})
+		http.Error(w, "Authentication failed", http.StatusUnauthorized)
 		return
 	}
 
@@ -119,16 +135,16 @@ func OIDCCallbackHandler(c *gin.Context) {
 		Email string `json:"email"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed"})
+		http.Error(w, "Authentication failed", http.StatusUnauthorized)
 		return
 	}
 
 	// Here you can create a session for the user or generate a JWT token
 	token, err := auth.GenerateJWT(claims.Email)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	utils.WriteJSON(w, map[string]string{"token": token})
 }
