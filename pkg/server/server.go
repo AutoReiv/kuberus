@@ -104,6 +104,9 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Conf
 	api.PUT("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
 	api.DELETE("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
 	api.GET("/resources", rbac.APIResourcesHandler(clientset))
+	api.GET("/serviceaccounts", rbac.ServiceAccountsHandler(clientset))
+	api.POST("/serviceaccounts", rbac.ServiceAccountsHandler(clientset))
+	api.DELETE("/serviceaccounts", rbac.ServiceAccountsHandler(clientset))
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -115,7 +118,6 @@ func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Conf
 		c.JSON(http.StatusOK, gin.H{"message": "Welcome to the RBAC Manager"})
 	})
 }
-
 // handleGracefulShutdown handles the graceful shutdown of the server.
 func handleGracefulShutdown(srv *http.Server) {
 	go func() {
