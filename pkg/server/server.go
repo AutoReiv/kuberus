@@ -85,7 +85,9 @@ func registerRoutes(mux *http.ServeMux, clientset *kubernetes.Clientset, config 
 	apiMux.Handle("/api/resources", http.HandlerFunc(rbac.APIResourcesHandler(clientset)))
 	apiMux.Handle("/api/serviceaccounts", http.HandlerFunc(rbac.ServiceAccountsHandler(clientset)))
 	apiMux.Handle("/api/users", http.HandlerFunc(rbac.UsersHandler(clientset)))
+	apiMux.Handle("/api/user-details", http.HandlerFunc(rbac.UserDetailsHandler(clientset)))
 	apiMux.Handle("/api/groups", http.HandlerFunc(rbac.GroupsHandler(clientset)))
+	apiMux.Handle("/api/group-details", http.HandlerFunc(rbac.GroupDetailsHandler(clientset)))
 
 	mux.Handle("/api/", middleware.AuthMiddleware(apiMux, config.IsDevMode))
 
