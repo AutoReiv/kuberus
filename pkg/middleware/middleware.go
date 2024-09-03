@@ -9,12 +9,6 @@ import (
 	"time"
 )
 
-type contextKey string
-
-const (
-	usernameKey contextKey = "username"
-)
-
 // ApplyMiddlewares applies all the middlewares to the given handler.
 func ApplyMiddlewares(handler http.Handler, isDevMode bool) http.Handler {
 	if isDevMode {
@@ -61,34 +55,25 @@ func secureHeadersMiddleware(next http.Handler) http.Handler {
 func AuthMiddleware(next http.Handler, isDevMode bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if isDevMode {
-			// Debug statement to verify dev mode
-			log.Println("Development mode: Bypassing authentication")
-			// Skip authentication in development mode
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+			http.Error(w, "Authorization header is required", http.StatusUnauthorized)
 			return
 		}
 
-		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-		if tokenStr == authHeader {
-			http.Error(w, "Invalid token format", http.StatusUnauthorized)
-			return
-		}
-
-		claims, err := auth.ValidateJWT(tokenStr)
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		claims, err := auth.ValidateJWT(token)
 		if err != nil {
-			log.Println("Token validation error:", err) // Debug statement
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			http.Error(w, "Invalid token: "+err.Error(), http.StatusUnauthorized)
 			return
 		}
 
-		// Set the username in the request context
-		ctx := context.WithValue(r.Context(), usernameKey, claims.Username)
+		// Add username to context
+		ctx := context.WithValue(r.Context(), "username", claims.Username)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

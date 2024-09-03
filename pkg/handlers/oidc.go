@@ -34,15 +34,22 @@ func SetOIDCConfigHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure the user is an admin
-	username := r.Context().Value("username").(string)
+	username, ok := r.Context().Value("username").(string)
+	if !ok {
+		log.Println("Error: username not found in context")
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	if !auth.IsAdmin(username) {
+		log.Printf("Error: user %s is not an admin", username)
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
 	var config OIDCConfig
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Printf("Error decoding request payload: %v", err)
+		http.Error(w, "Invalid request payload: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -62,6 +69,7 @@ func SetOIDCConfigHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	oidcProvider, err = oidc.NewProvider(context.Background(), config.IssuerURL)
 	if err != nil {
+		log.Printf("Error creating OIDC provider: %v", err)
 		http.Error(w, "Failed to create OIDC provider: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

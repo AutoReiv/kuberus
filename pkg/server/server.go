@@ -99,6 +99,7 @@ func registerRoutes(mux *http.ServeMux, clientset *kubernetes.Clientset, config 
 		w.Write([]byte(`{"message": "Welcome to the RBAC Manager"}`))
 	}))
 }
+
 // handleGracefulShutdown handles the graceful shutdown of the server.
 func handleGracefulShutdown(srv *http.Server) {
 	go func() {
