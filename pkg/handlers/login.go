@@ -1,11 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"rbac/pkg/auth"
 	"rbac/pkg/utils"
-
-	"github.com/gin-gonic/gin"
 )
 
 // LoginRequest represents the request payload for user login.
@@ -19,10 +18,16 @@ type LoginResponse struct {
 	Token string `json:"token"`
 }
 
-func LoginHandler(c *gin.Context) {
+// LoginHandler handles user login.
+func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	var req LoginRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -32,16 +37,16 @@ func LoginHandler(c *gin.Context) {
 
 	// Authenticate user
 	if !auth.AuthenticateUser(username, password) {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
 	// Generate JWT token
 	token, err := auth.GenerateJWT(username)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		http.Error(w, "Failed to generate token: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, LoginResponse{Token: token})
+	utils.WriteJSON(w, LoginResponse{Token: token})
 }

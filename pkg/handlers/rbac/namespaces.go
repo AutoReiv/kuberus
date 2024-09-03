@@ -2,62 +2,69 @@ package rbac
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"rbac/pkg/utils"
 
-	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-// NamespacesHandler handles listing namespaces
-func NamespacesHandler(clientset *kubernetes.Clientset) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		switch c.Request.Method {
+// NamespacesHandler handles requests related to namespaces.
+func NamespacesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
 		case http.MethodGet:
-			listNamespaces(c, clientset)
+			handleListNamespaces(w, clientset)
 		case http.MethodPost:
-			createNamespace(c, clientset)
+			handleCreateNamespace(w, r, clientset)
 		case http.MethodDelete:
-			deleteNamespace(c, clientset, c.Query("name"))
+			handleDeleteNamespace(w, clientset, r.URL.Query().Get("name"))
 		default:
-			c.Status(http.StatusMethodNotAllowed)
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
 
-// listNamespaces lists all namespaces
-func listNamespaces(c *gin.Context, clientset *kubernetes.Clientset) {
+// handleListNamespaces lists all namespaces.
+func handleListNamespaces(w http.ResponseWriter, clientset *kubernetes.Clientset) {
 	namespaces, err := clientset.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	c.JSON(http.StatusOK, namespaces.Items)
+	utils.WriteJSON(w, namespaces.Items)
 }
 
-// createNamespace creates a new namespace
-func createNamespace(c *gin.Context, clientset *kubernetes.Clientset) {
+// handleCreateNamespace creates a new namespace.
+func handleCreateNamespace(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset) {
 	var namespace corev1.Namespace
-	if err := c.ShouldBindJSON(&namespace); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to decode request body: " + err.Error()})
+	if err := json.NewDecoder(r.Body).Decode(&namespace); err != nil {
+		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	createdNamespace, err := clientset.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create namespace: " + err.Error()})
+		http.Error(w, "Failed to create namespace: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, createdNamespace)
+	utils.WriteJSON(w, createdNamespace)
 }
 
-// deleteNamespace deletes a namespace
-func deleteNamespace(c *gin.Context, clientset *kubernetes.Clientset, name string) {
-	if err := clientset.CoreV1().Namespaces().Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete namespace: " + err.Error()})
+// handleDeleteNamespace deletes a namespace by name.
+func handleDeleteNamespace(w http.ResponseWriter, clientset *kubernetes.Clientset, name string) {
+	if name == "" {
+		http.Error(w, "Namespace name is required", http.StatusBadRequest)
 		return
 	}
-	c.Status(http.StatusNoContent)
+
+	err := clientset.CoreV1().Namespaces().Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		http.Error(w, "Failed to delete namespace: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

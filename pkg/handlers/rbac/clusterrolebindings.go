@@ -2,59 +2,70 @@ package rbac
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"rbac/pkg/utils"
+
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-func ClusterRoleBindingsHandler(clientset *kubernetes.Clientset) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		switch c.Request.Method {
+// ClusterRoleBindingsHandler handles requests related to cluster role bindings.
+func ClusterRoleBindingsHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
 		case http.MethodGet:
-			listClusterRoleBindings(c, clientset)
+			handleListClusterRoleBindings(w, clientset)
 		case http.MethodPost:
-			createClusterRoleBindings(c, clientset)
+			handleCreateClusterRoleBinding(w, r, clientset)
 		case http.MethodDelete:
-			deleteClusterRoleBinding(c, clientset, c.Query("name"))
+			handleDeleteClusterRoleBinding(w, clientset, r.URL.Query().Get("name"))
 		default:
-			c.Status(http.StatusMethodNotAllowed)
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
 
-func listClusterRoleBindings(c *gin.Context, clientset *kubernetes.Clientset) {
+// handleListClusterRoleBindings lists all cluster role bindings.
+func handleListClusterRoleBindings(w http.ResponseWriter, clientset *kubernetes.Clientset) {
 	clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	c.JSON(http.StatusOK, clusterRoleBindings.Items)
+	utils.WriteJSON(w, clusterRoleBindings.Items)
 }
 
-func createClusterRoleBindings(c *gin.Context, clientset *kubernetes.Clientset) {
+// handleCreateClusterRoleBinding creates a new cluster role binding.
+func handleCreateClusterRoleBinding(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset) {
 	var clusterRoleBinding rbacv1.ClusterRoleBinding
-	if err := c.ShouldBindJSON(&clusterRoleBinding); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to decode request body: " + err.Error()})
+	if err := json.NewDecoder(r.Body).Decode(&clusterRoleBinding); err != nil {
+		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	createdClusterRoleBinding, err := clientset.RbacV1().ClusterRoleBindings().Create(context.TODO(), &clusterRoleBinding, metav1.CreateOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create cluster role binding: " + err.Error()})
+		http.Error(w, "Failed to create cluster role binding: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, createdClusterRoleBinding)
+	utils.WriteJSON(w, createdClusterRoleBinding)
 }
 
-func deleteClusterRoleBinding(c *gin.Context, clientset *kubernetes.Clientset, name string) {
-	err := clientset.RbacV1().ClusterRoleBindings().Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete cluster role binding: " + err.Error()})
+// handleDeleteClusterRoleBinding deletes a cluster role binding by name.
+func handleDeleteClusterRoleBinding(w http.ResponseWriter, clientset *kubernetes.Clientset, name string) {
+	if name == "" {
+		http.Error(w, "Cluster role binding name is required", http.StatusBadRequest)
 		return
 	}
-	c.Status(http.StatusNoContent)
+
+	err := clientset.RbacV1().ClusterRoleBindings().Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		http.Error(w, "Failed to delete cluster role binding: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

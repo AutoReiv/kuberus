@@ -1,11 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"rbac/pkg/auth"
 	"rbac/pkg/utils"
-
-	"github.com/gin-gonic/gin"
 )
 
 // CreateAdminRequest represents the request payload for creating an admin account.
@@ -16,10 +15,15 @@ type CreateAdminRequest struct {
 }
 
 // CreateAdminHandler handles the creation of an admin account.
-func CreateAdminHandler(c *gin.Context) {
+func CreateAdminHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	var req CreateAdminRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -29,14 +33,14 @@ func CreateAdminHandler(c *gin.Context) {
 
 	// Validate password strength
 	if !utils.IsStrongPassword(password) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Password does not meet strength requirements"})
+		http.Error(w, "Password does not meet strength requirements", http.StatusBadRequest)
 		return
 	}
 
 	// Hash the password
 	hashedPassword, err := auth.HashPassword(password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error hashing password"})
+		http.Error(w, "Error hashing password: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -46,7 +50,7 @@ func CreateAdminHandler(c *gin.Context) {
 
 	// Check if an admin account already exists
 	if auth.AdminExists {
-		c.JSON(http.StatusConflict, gin.H{"error": "Admin account already exists"})
+		http.Error(w, "Admin account already exists", http.StatusConflict)
 		return
 	}
 
@@ -54,5 +58,5 @@ func CreateAdminHandler(c *gin.Context) {
 	auth.Users[username] = hashedPassword
 	auth.AdminExists = true
 
-	c.JSON(http.StatusOK, gin.H{"message": "Admin account created successfully"})
+	utils.WriteJSON(w, map[string]string{"message": "Admin account created successfully"})
 }

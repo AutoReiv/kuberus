@@ -12,7 +12,6 @@ import (
 	"rbac/pkg/handlers/rbac"
 	"rbac/pkg/middleware"
 
-	"github.com/gin-gonic/gin"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -36,23 +35,19 @@ func NewConfig() *Config {
 
 // NewServer creates a new HTTP server with the necessary routes and middleware.
 func NewServer(clientset *kubernetes.Clientset, config *Config) *http.Server {
-	// Create a new Gin router
-	r := gin.New()
-
-	// Use Gin's logger and recovery middleware for better logging and error handling
-	r.Use(gin.Logger())
-	r.Use(gin.Recovery())
-
-	// Secure the server with secure headers
-	r.Use(middleware.SecureHeaders())
+	// Create a new ServeMux
+	mux := http.NewServeMux()
 
 	// Register routes
-	registerRoutes(r, clientset, config)
+	registerRoutes(mux, clientset, config)
+
+	// Apply middlewares
+	handler := middleware.ApplyMiddlewares(mux, config.IsDevMode)
 
 	// Create the HTTP server
 	srv := &http.Server{
 		Addr:         ":" + config.Port,
-		Handler:      r,
+		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -65,55 +60,44 @@ func NewServer(clientset *kubernetes.Clientset, config *Config) *http.Server {
 }
 
 // registerRoutes registers all the routes for the server.
-func registerRoutes(r *gin.Engine, clientset *kubernetes.Clientset, config *Config) {
+func registerRoutes(mux *http.ServeMux, clientset *kubernetes.Clientset, config *Config) {
 	// Admin account creation route
-	r.POST("/admin/create", handlers.CreateAdminHandler)
+	mux.Handle("/admin/create", http.HandlerFunc(handlers.CreateAdminHandler))
 
 	// Authentication routes
-	auth := r.Group("/auth")
-	auth.POST("/login", handlers.LoginHandler)
+	mux.Handle("/auth/login", http.HandlerFunc(handlers.LoginHandler))
 	// OIDC routes
-	auth.GET("/oidc/login", handlers.OIDCAuthHandler)
-	auth.GET("/oidc/callback", handlers.OIDCCallbackHandler)
+	mux.Handle("/auth/oidc/login", http.HandlerFunc(handlers.OIDCAuthHandler))
+	mux.Handle("/auth/oidc/callback", http.HandlerFunc(handlers.OIDCCallbackHandler))
 
 	// Admin OIDC configuration route
-	admin := r.Group("/admin")
-	admin.Use(middleware.AuthMiddleware(config.IsDevMode))
-	admin.POST("/oidc/config", handlers.SetOIDCConfigHandler)
+	mux.Handle("/admin/oidc/config", middleware.AuthMiddleware(http.HandlerFunc(handlers.SetOIDCConfigHandler), config.IsDevMode))
 
 	// Protected API routes
-	api := r.Group("/api")
-	api.Use(middleware.AuthMiddleware(config.IsDevMode))
-	api.GET("/namespaces", rbac.NamespacesHandler(clientset))
-	api.GET("/roles", rbac.RolesHandler(clientset))
-	api.GET("/roles/details", rbac.RoleDetailsHandler(clientset))
-	api.POST("/roles", rbac.RolesHandler(clientset))
-	api.PUT("/roles", rbac.RolesHandler(clientset))
-	api.DELETE("/roles", rbac.RolesHandler(clientset))
-	api.GET("/rolebindings", rbac.RoleBindingsHandler(clientset))
-	api.POST("/rolebindings", rbac.RoleBindingsHandler(clientset))
-	api.PUT("/rolebindings", rbac.RoleBindingsHandler(clientset))
-	api.DELETE("/rolebindings", rbac.RoleBindingsHandler(clientset))
-	api.GET("/clusterroles", rbac.ClusterRolesHandler(clientset))
-	api.GET("/clusterroles/details", rbac.ClusterRoleDetailsHandler(clientset))
-	api.POST("/clusterroles", rbac.ClusterRolesHandler(clientset))
-	api.PUT("/clusterroles", rbac.ClusterRolesHandler(clientset))
-	api.DELETE("/clusterroles", rbac.ClusterRolesHandler(clientset))
-	api.GET("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
-	api.POST("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
-	api.PUT("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
-	api.DELETE("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
-	api.GET("/resources", rbac.APIResourcesHandler(clientset))
+	apiMux := http.NewServeMux()
+	apiMux.Handle("/api/namespaces", http.HandlerFunc(rbac.NamespacesHandler(clientset)))
+	apiMux.Handle("/api/roles", http.HandlerFunc(rbac.RolesHandler(clientset)))
+	apiMux.Handle("/api/roles/details", http.HandlerFunc(rbac.RoleDetailsHandler(clientset)))
+	apiMux.Handle("/api/rolebindings", http.HandlerFunc(rbac.RoleBindingsHandler(clientset)))
+	apiMux.Handle("/api/clusterroles", http.HandlerFunc(rbac.ClusterRolesHandler(clientset)))
+	apiMux.Handle("/api/clusterroles/details", http.HandlerFunc(rbac.ClusterRoleDetailsHandler(clientset)))
+	apiMux.Handle("/api/clusterrolebindings", http.HandlerFunc(rbac.ClusterRoleBindingsHandler(clientset)))
+	apiMux.Handle("/api/resources", http.HandlerFunc(rbac.APIResourcesHandler(clientset)))
+	apiMux.Handle("/api/serviceaccounts", http.HandlerFunc(rbac.ServiceAccountsHandler(clientset)))
+
+	mux.Handle("/api/", middleware.AuthMiddleware(apiMux, config.IsDevMode))
 
 	// Health check endpoint
-	r.GET("/health", func(c *gin.Context) {
-		c.Status(http.StatusOK)
-	})
+	mux.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
 
 	// Root URL handler
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Welcome to the RBAC Manager"})
-	})
+	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"message": "Welcome to the RBAC Manager"}`))
+	}))
 }
 
 // handleGracefulShutdown handles the graceful shutdown of the server.
