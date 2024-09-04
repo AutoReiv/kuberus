@@ -4,6 +4,7 @@ import "./globals.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
 
 const poppins = Poppins({
   weight: ["400", "500", "600", "700"],
@@ -19,8 +20,8 @@ export default function RootLayout({
 }>) {
   return (
     <QueryClientProvider client={queryClient}>
-      <html lang="en" suppressHydrationWarning>
-        <body className={poppins.className}>
+      <html lang="en" suppressHydrationWarning className="max-h-screen">
+        <body className={cn(poppins.className, "max-h-screen")}>
           <ThemeProvider
             attribute="class"
             defaultTheme="system"

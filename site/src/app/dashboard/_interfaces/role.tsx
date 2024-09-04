@@ -12,7 +12,7 @@ interface RoleMetaData {
     managedFields: []
 }
 
-interface RoleRules {
+export interface RoleRules {
     verbs: [],
     apiGroups: [],
     resources: []
