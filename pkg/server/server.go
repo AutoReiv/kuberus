@@ -53,10 +53,21 @@ func NewServer(clientset *kubernetes.Clientset, config *Config) *http.Server {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Handle graceful shutdown
 	handleGracefulShutdown(srv)
-
 	return srv
+}
+
+func StartServer(srv *http.Server, config *Config) error {
+	certFile := "certs/tls.crt"
+	keyFile := "certs/tls.key"
+
+	if _, err := os.Stat(certFile); err == nil {
+		if _, err := os.Stat(keyFile); err == nil {
+			return srv.ListenAndServeTLS(certFile, keyFile)
+		}
+	}
+
+	return srv.ListenAndServe()
 }
 
 // registerRoutes registers all the routes for the server.
@@ -72,6 +83,9 @@ func registerRoutes(mux *http.ServeMux, clientset *kubernetes.Clientset, config 
 
 	// Admin OIDC configuration route
 	mux.Handle("/admin/oidc/config", middleware.AuthMiddleware(http.HandlerFunc(handlers.SetOIDCConfigHandler), config.IsDevMode))
+	// Admin Certificate Upload route
+	uploadCertsHandler := handlers.NewUploadCertsHandler(clientset)
+	mux.Handle("/admin/upload-certs", middleware.AuthMiddleware(uploadCertsHandler, config.IsDevMode))
 
 	// Protected API routes
 	apiMux := http.NewServeMux()
