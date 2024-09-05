@@ -3,6 +3,7 @@ package rbac
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"rbac/pkg/utils"
 
@@ -50,7 +51,7 @@ func listNamespaceRoles(w http.ResponseWriter, clientset *kubernetes.Clientset, 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	utils.WriteJSON(w, roles)
+	utils.WriteJSON(w, roles.Items)
 }
 
 // listAllNamespacesRoles lists roles across all namespaces.
@@ -60,7 +61,7 @@ func listAllNamespacesRoles(w http.ResponseWriter, clientset *kubernetes.Clients
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	utils.WriteJSON(w, roles)
+	utils.WriteJSON(w, roles.Items)
 }
 
 // handleCreateRole handles creating a new role in a specific namespace.
@@ -71,12 +72,18 @@ func handleCreateRole(w http.ResponseWriter, r *http.Request, clientset *kuberne
 		return
 	}
 
+	if err := validateRole(&role); err != nil {
+		http.Error(w, "Invalid role: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	createdRole, err := clientset.RbacV1().Roles(namespace).Create(context.TODO(), &role, metav1.CreateOptions{})
 	if err != nil {
 		http.Error(w, "Failed to create role: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	utils.LogAuditEvent("create", role.Name, namespace)
 	utils.WriteJSON(w, createdRole)
 }
 
@@ -88,12 +95,18 @@ func handleUpdateRole(w http.ResponseWriter, r *http.Request, clientset *kuberne
 		return
 	}
 
+	if err := validateRole(&role); err != nil {
+		http.Error(w, "Invalid role: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	updatedRole, err := clientset.RbacV1().Roles(namespace).Update(context.TODO(), &role, metav1.UpdateOptions{})
 	if err != nil {
 		http.Error(w, "Failed to update role: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	utils.LogAuditEvent("update", role.Name, namespace)
 	utils.WriteJSON(w, updatedRole)
 }
 
@@ -109,6 +122,8 @@ func handleDeleteRole(w http.ResponseWriter, clientset *kubernetes.Clientset, na
 		http.Error(w, "Failed to delete role: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	utils.LogAuditEvent("delete", name, namespace)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -164,4 +179,15 @@ func filterRoleBindings(roleBindings []rbacv1.RoleBinding, roleName string) []rb
 type RoleDetailsResponse struct {
 	Role         *rbacv1.Role         `json:"role"`
 	RoleBindings []rbacv1.RoleBinding `json:"roleBindings"`
+}
+
+// validateRole ensures that the role is valid.
+func validateRole(role *rbacv1.Role) error {
+	if role.Name == "" {
+		return errors.New("role name is required")
+	}
+	if len(role.Rules) == 0 {
+		return errors.New("at least one rule is required")
+	}
+	return nil
 }

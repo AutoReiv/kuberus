@@ -70,7 +70,7 @@ func CreateAdminHandler(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, map[string]string{"message": "Admin account created successfully"})
 }
 
-// UploadCertsHandler handles the uploading of TLS certificates.
+// UploadCertsHandler handles the uploading, updating, and deleting of TLS certificates.
 type UploadCertsHandler struct {
 	Clientset *kubernetes.Clientset
 }
@@ -80,11 +80,19 @@ func NewUploadCertsHandler(clientset *kubernetes.Clientset) *UploadCertsHandler 
 }
 
 func (h *UploadCertsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+	switch r.Method {
+	case http.MethodPost:
+		h.handleUpload(w, r)
+	case http.MethodPut:
+		h.handleUpdate(w, r)
+	case http.MethodDelete:
+		h.handleDelete(w, r)
+	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
 	}
+}
 
+func (h *UploadCertsHandler) handleUpload(w http.ResponseWriter, r *http.Request) {
 	// Ensure the user is an admin
 	username, ok := r.Context().Value("username").(string)
 	if !ok || !auth.IsAdmin(username) {
@@ -155,6 +163,101 @@ func (h *UploadCertsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Respond with success
 	utils.WriteJSON(w, map[string]string{"message": "Certificates uploaded successfully. Deployment will restart to apply changes. This may take a few moments."})
+
+	// Trigger a rolling restart of the deployment
+	go h.triggerRollingRestart()
+}
+
+func (h *UploadCertsHandler) handleUpdate(w http.ResponseWriter, r *http.Request) {
+	// Ensure the user is an admin
+	username, ok := r.Context().Value("username").(string)
+	if !ok || !auth.IsAdmin(username) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// Parse the multipart form
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		http.Error(w, "Failed to parse form: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Retrieve the certificate and key files
+	certFile, _, err := r.FormFile("certFile")
+	if err != nil {
+		http.Error(w, "Failed to retrieve cert file: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer certFile.Close()
+
+	keyFile, _, err := r.FormFile("keyFile")
+	if err != nil {
+		http.Error(w, "Failed to retrieve key file: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer keyFile.Close()
+
+	// Read the certificate and key files
+	certData, err := io.ReadAll(certFile)
+	if err != nil {
+		http.Error(w, "Failed to read cert file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	keyData, err := io.ReadAll(keyFile)
+	if err != nil {
+		http.Error(w, "Failed to read key file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Validate the certificate and key files
+	if err := isValidCertAndKey(certData, keyData); err != nil {
+		http.Error(w, "Invalid certificate or key: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Update the Kubernetes Secret
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tls-certs",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			"tls.crt": certData,
+			"tls.key": keyData,
+		},
+	}
+
+	_, err = h.Clientset.CoreV1().Secrets("default").Update(context.TODO(), secret, metav1.UpdateOptions{})
+	if err != nil {
+		http.Error(w, "Failed to update secret: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with success
+	utils.WriteJSON(w, map[string]string{"message": "Certificates updated successfully. Deployment will restart to apply changes. This may take a few moments."})
+
+	// Trigger a rolling restart of the deployment
+	go h.triggerRollingRestart()
+}
+
+func (h *UploadCertsHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
+	// Ensure the user is an admin
+	username, ok := r.Context().Value("username").(string)
+	if !ok || !auth.IsAdmin(username) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// Delete the Kubernetes Secret
+	err := h.Clientset.CoreV1().Secrets("default").Delete(context.TODO(), "tls-certs", metav1.DeleteOptions{})
+	if err != nil {
+		http.Error(w, "Failed to delete secret: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with success
+	utils.WriteJSON(w, map[string]string{"message": "Certificates deleted successfully. Deployment will restart to apply changes. This may take a few moments."})
 
 	// Trigger a rolling restart of the deployment
 	go h.triggerRollingRestart()
