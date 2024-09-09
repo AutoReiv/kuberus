@@ -8,6 +8,7 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/joho/godotenv v1.5.1
+	github.com/mattn/go-sqlite3 v1.14.23
 	golang.org/x/crypto v0.26.0
 	golang.org/x/oauth2 v0.22.0
 	k8s.io/api v0.31.0

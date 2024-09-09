@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"rbac/pkg/auth"
+	"rbac/pkg/db"
 	"rbac/pkg/utils"
 	"time"
 
@@ -53,19 +54,25 @@ func CreateAdminHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Acquire lock to synchronize access to shared data
-	auth.Mu.Lock()
-	defer auth.Mu.Unlock()
-
 	// Check if an admin account already exists
-	if auth.AdminExists {
+	var adminExists bool
+	err = db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username = ?)", username).Scan(&adminExists)
+	if err != nil {
+		http.Error(w, "Error checking admin existence: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if adminExists {
 		http.Error(w, "Admin account already exists", http.StatusConflict)
 		return
 	}
 
 	// Store the admin account information
-	auth.Users[username] = hashedPassword
-	auth.AdminExists = true
+	_, err = db.DB.Exec("INSERT INTO users (username, password) VALUES (?, ?)", username, hashedPassword)
+	if err != nil {
+		http.Error(w, "Error creating admin account: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	utils.WriteJSON(w, map[string]string{"message": "Admin account created successfully"})
 }

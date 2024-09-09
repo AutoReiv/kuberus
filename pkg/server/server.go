@@ -87,6 +87,11 @@ func registerRoutes(mux *http.ServeMux, clientset *kubernetes.Clientset, config 
 	uploadCertsHandler := handlers.NewUploadCertsHandler(clientset)
 	mux.Handle("/admin/upload-certs", middleware.AuthMiddleware(uploadCertsHandler, config.IsDevMode))
 
+	// User management routes
+	mux.Handle("/admin/create-user", middleware.AuthMiddleware(http.HandlerFunc(handlers.CreateUserHandler), config.IsDevMode))
+	mux.Handle("/admin/update-user", middleware.AuthMiddleware(http.HandlerFunc(handlers.UpdateUserHandler), config.IsDevMode))
+	mux.Handle("/admin/delete-user", middleware.AuthMiddleware(http.HandlerFunc(handlers.DeleteUserHandler), config.IsDevMode))
+
 	// Protected API routes
 	apiMux := http.NewServeMux()
 	// Namespace routes

@@ -18,14 +18,6 @@ var (
 	verifier     *oidc.IDTokenVerifier
 )
 
-// OIDCConfig represents the OIDC configuration.
-type OIDCConfig struct {
-	ClientID     string `json:"client_id" binding:"required"`
-	ClientSecret string `json:"client_secret" binding:"required"`
-	IssuerURL    string `json:"issuer_url" binding:"required"`
-	CallbackURL  string `json:"callback_url" binding:"required"`
-}
-
 // SetOIDCConfigHandler allows an admin to set the OIDC configuration.
 func SetOIDCConfigHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -35,54 +27,25 @@ func SetOIDCConfigHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Ensure the user is an admin
 	username, ok := r.Context().Value("username").(string)
-	if !ok {
-		log.Println("Error: username not found in context")
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-	if !auth.IsAdmin(username) {
-		log.Printf("Error: user %s is not an admin", username)
+	if !ok || !auth.IsAdmin(username) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
-	var config OIDCConfig
+	var config auth.OIDCConfig
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		log.Printf("Error decoding request payload: %v", err)
 		http.Error(w, "Invalid request payload: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Log the OIDC configuration for debugging
-	log.Printf("Setting OIDC Config: %+v", config)
-
-	// Store the OIDC configuration (in-memory for simplicity)
-	auth.Mu.Lock()
-	auth.Config = &auth.OIDCConfig{
-		ClientID:     config.ClientID,
-		ClientSecret: config.ClientSecret,
-		IssuerURL:    config.IssuerURL,
-		CallbackURL:  config.CallbackURL,
-	}
-	auth.Mu.Unlock()
-
-	var err error
-	oidcProvider, err = oidc.NewProvider(context.Background(), config.IssuerURL)
-	if err != nil {
-		log.Printf("Error creating OIDC provider: %v", err)
-		http.Error(w, "Failed to create OIDC provider: "+err.Error(), http.StatusInternalServerError)
+	if err := auth.SetOIDCConfig(&config); err != nil {
+		http.Error(w, "Failed to set OIDC configuration: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	oauth2Config = &oauth2.Config{
-		ClientID:     config.ClientID,
-		ClientSecret: config.ClientSecret,
-		Endpoint:     oidcProvider.Endpoint(),
-		RedirectURL:  config.CallbackURL,
-		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
-	}
+	// Initialize OIDC provider and verifier
+	initOIDCProvider(config)
 
-	verifier = oidcProvider.Verifier(&oidc.Config{ClientID: config.ClientID})
 	utils.WriteJSON(w, map[string]string{"message": "OIDC configuration set successfully"})
 }
 
@@ -94,7 +57,8 @@ func OIDCAuthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if the OIDC configuration is set
-	if auth.Config == nil {
+	_ , err := auth.GetOIDCConfig()
+	if err != nil {
 		http.Error(w, "OIDC configuration not set", http.StatusBadRequest)
 		return
 	}
@@ -155,4 +119,23 @@ func OIDCCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJSON(w, map[string]string{"token": token})
+}
+
+// initOIDCProvider initializes the OIDC provider and verifier.
+func initOIDCProvider(config auth.OIDCConfig) {
+	var err error
+	oidcProvider, err = oidc.NewProvider(context.Background(), config.IssuerURL)
+	if err != nil {
+		log.Fatalf("Error creating OIDC provider: %v", err)
+	}
+
+	oauth2Config = &oauth2.Config{
+		ClientID:     config.ClientID,
+		ClientSecret: config.ClientSecret,
+		Endpoint:     oidcProvider.Endpoint(),
+		RedirectURL:  config.CallbackURL,
+		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+	}
+
+	verifier = oidcProvider.Verifier(&oidc.Config{ClientID: config.ClientID})
 }
