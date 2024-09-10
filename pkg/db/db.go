@@ -35,6 +35,15 @@ func createTables() {
 		callback_url TEXT NOT NULL
 	);`
 
+	createAuditLogTable := `
+    CREATE TABLE IF NOT EXISTS audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        action TEXT NOT NULL,
+        resource_name TEXT NOT NULL,
+        namespace TEXT NOT NULL,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    );`
+
 	_, err := DB.Exec(createUserTable)
 	if err != nil {
 		log.Fatalf("Error creating users table: %v", err)
@@ -43,5 +52,10 @@ func createTables() {
 	_, err = DB.Exec(createOIDCTable)
 	if err != nil {
 		log.Fatalf("Error creating oidc_config table: %v", err)
+	}
+
+	_, err = DB.Exec(createAuditLogTable)
+	if err != nil {
+		log.Fatalf("Error creating audit_logs table: %v", err)
 	}
 }

@@ -19,6 +19,8 @@ func ClusterRolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 			handleListClusterRoles(w, clientset)
 		case http.MethodPost:
 			handleCreateClusterRole(w, r, clientset)
+		case http.MethodPut:
+			handleUpdateClusterRole(w, r, clientset)
 		case http.MethodDelete:
 			handleDeleteClusterRole(w, clientset, r.URL.Query().Get("name"))
 		default:
@@ -51,7 +53,26 @@ func handleCreateClusterRole(w http.ResponseWriter, r *http.Request, clientset *
 		return
 	}
 
+	utils.LogAuditEvent("create", clusterRole.Name, "cluster-wide")
 	utils.WriteJSON(w, createdClusterRole)
+}
+
+// handleUpdateClusterRole updates an existing cluster role.
+func handleUpdateClusterRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset) {
+	var clusterRole rbacv1.ClusterRole
+	if err := json.NewDecoder(r.Body).Decode(&clusterRole); err != nil {
+		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	updatedClusterRole, err := clientset.RbacV1().ClusterRoles().Update(context.TODO(), &clusterRole, metav1.UpdateOptions{})
+	if err != nil {
+		http.Error(w, "Failed to update cluster role: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.LogAuditEvent("update", clusterRole.Name, "cluster-wide")
+	utils.WriteJSON(w, updatedClusterRole)
 }
 
 // handleDeleteClusterRole deletes a cluster role by name.
@@ -66,6 +87,8 @@ func handleDeleteClusterRole(w http.ResponseWriter, clientset *kubernetes.Client
 		http.Error(w, "Failed to delete cluster role: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	utils.LogAuditEvent("delete", name, "cluster-wide")
 	w.WriteHeader(http.StatusNoContent)
 }
 
