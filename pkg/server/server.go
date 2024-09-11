@@ -53,10 +53,21 @@ func NewServer(clientset *kubernetes.Clientset, config *Config) *http.Server {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Handle graceful shutdown
 	handleGracefulShutdown(srv)
-
 	return srv
+}
+
+func StartServer(srv *http.Server, config *Config) error {
+	certFile := "certs/tls.crt"
+	keyFile := "certs/tls.key"
+
+	if _, err := os.Stat(certFile); err == nil {
+		if _, err := os.Stat(keyFile); err == nil {
+			return srv.ListenAndServeTLS(certFile, keyFile)
+		}
+	}
+
+	return srv.ListenAndServe()
 }
 
 // registerRoutes registers all the routes for the server.
@@ -72,16 +83,32 @@ func registerRoutes(mux *http.ServeMux, clientset *kubernetes.Clientset, config 
 
 	// Admin OIDC configuration route
 	mux.Handle("/admin/oidc/config", middleware.AuthMiddleware(http.HandlerFunc(handlers.SetOIDCConfigHandler), config.IsDevMode))
+	// Admin Certificate Upload route
+	uploadCertsHandler := handlers.NewUploadCertsHandler(clientset)
+	mux.Handle("/admin/upload-certs", middleware.AuthMiddleware(uploadCertsHandler, config.IsDevMode))
+
+	// User management routes
+	mux.Handle("/admin/create-user", middleware.AuthMiddleware(http.HandlerFunc(handlers.CreateUserHandler), config.IsDevMode))
+	mux.Handle("/admin/update-user", middleware.AuthMiddleware(http.HandlerFunc(handlers.UpdateUserHandler), config.IsDevMode))
+	mux.Handle("/admin/delete-user", middleware.AuthMiddleware(http.HandlerFunc(handlers.DeleteUserHandler), config.IsDevMode))
 
 	// Protected API routes
 	apiMux := http.NewServeMux()
+	// Namespace routes
 	apiMux.Handle("/api/namespaces", http.HandlerFunc(rbac.NamespacesHandler(clientset)))
+	// Role routes
 	apiMux.Handle("/api/roles", http.HandlerFunc(rbac.RolesHandler(clientset)))
 	apiMux.Handle("/api/roles/details", http.HandlerFunc(rbac.RoleDetailsHandler(clientset)))
-	apiMux.Handle("/api/rolebindings", http.HandlerFunc(rbac.RoleBindingsHandler(clientset)))
+	// Role bindings routes
+	apiMux.Handle("/api/rolebindings", middleware.AuthMiddleware(rbac.RoleBindingsHandler(clientset), config.IsDevMode))
+	apiMux.Handle("/api/rolebinding/details", middleware.AuthMiddleware(rbac.RoleBindingDetailsHandler(clientset), config.IsDevMode))
+	// Cluster role routes
 	apiMux.Handle("/api/clusterroles", http.HandlerFunc(rbac.ClusterRolesHandler(clientset)))
 	apiMux.Handle("/api/clusterroles/details", http.HandlerFunc(rbac.ClusterRoleDetailsHandler(clientset)))
+	// Cluster role bindings routes
 	apiMux.Handle("/api/clusterrolebindings", http.HandlerFunc(rbac.ClusterRoleBindingsHandler(clientset)))
+	apiMux.Handle("/api/clusterrolebinding/details", http.HandlerFunc(rbac.ClusterRoleBindingDetailsHandler(clientset)))
+	
 	apiMux.Handle("/api/resources", http.HandlerFunc(rbac.APIResourcesHandler(clientset)))
 	apiMux.Handle("/api/serviceaccounts", http.HandlerFunc(rbac.ServiceAccountsHandler(clientset)))
 	apiMux.Handle("/api/serviceaccount-details", http.HandlerFunc(rbac.ServiceAccountDetailsHandler(clientset)))
@@ -89,6 +116,8 @@ func registerRoutes(mux *http.ServeMux, clientset *kubernetes.Clientset, config 
 	apiMux.Handle("/api/user-details", http.HandlerFunc(rbac.UserDetailsHandler(clientset)))
 	apiMux.Handle("/api/groups", http.HandlerFunc(rbac.GroupsHandler(clientset)))
 	apiMux.Handle("/api/group-details", http.HandlerFunc(rbac.GroupDetailsHandler(clientset)))
+	// Audit logs route
+	apiMux.Handle("/api/audit-logs", http.HandlerFunc(handlers.GetAuditLogsHandler))
 
 	mux.Handle("/api/", middleware.AuthMiddleware(apiMux, config.IsDevMode))
 

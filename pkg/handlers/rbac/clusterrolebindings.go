@@ -20,6 +20,8 @@ func ClusterRoleBindingsHandler(clientset *kubernetes.Clientset) http.HandlerFun
 			handleListClusterRoleBindings(w, clientset)
 		case http.MethodPost:
 			handleCreateClusterRoleBinding(w, r, clientset)
+		case http.MethodPut:
+			handleUpdateClusterRoleBinding(w, r, clientset)
 		case http.MethodDelete:
 			handleDeleteClusterRoleBinding(w, clientset, r.URL.Query().Get("name"))
 		default:
@@ -52,7 +54,26 @@ func handleCreateClusterRoleBinding(w http.ResponseWriter, r *http.Request, clie
 		return
 	}
 
+	utils.LogAuditEvent("create", clusterRoleBinding.Name, "cluster-wide")
 	utils.WriteJSON(w, createdClusterRoleBinding)
+}
+
+// handleUpdateClusterRoleBinding updates an existing cluster role binding.
+func handleUpdateClusterRoleBinding(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset) {
+	var clusterRoleBinding rbacv1.ClusterRoleBinding
+	if err := json.NewDecoder(r.Body).Decode(&clusterRoleBinding); err != nil {
+		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	updatedClusterRoleBinding, err := clientset.RbacV1().ClusterRoleBindings().Update(context.TODO(), &clusterRoleBinding, metav1.UpdateOptions{})
+	if err != nil {
+		http.Error(w, "Failed to update cluster role binding: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.LogAuditEvent("update", clusterRoleBinding.Name, "cluster-wide")
+	utils.WriteJSON(w, updatedClusterRoleBinding)
 }
 
 // handleDeleteClusterRoleBinding deletes a cluster role binding by name.
@@ -67,5 +88,26 @@ func handleDeleteClusterRoleBinding(w http.ResponseWriter, clientset *kubernetes
 		http.Error(w, "Failed to delete cluster role binding: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	utils.LogAuditEvent("delete", name, "cluster-wide")
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ClusterRoleBindingDetailsHandler handles fetching detailed information about a specific cluster role binding.
+func ClusterRoleBindingDetailsHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		clusterRoleBindingName := r.URL.Query().Get("name")
+		if clusterRoleBindingName == "" {
+			http.Error(w, "Cluster role binding name is required", http.StatusBadRequest)
+			return
+		}
+
+		clusterRoleBinding, err := clientset.RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterRoleBindingName, metav1.GetOptions{})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		utils.WriteJSON(w, clusterRoleBinding)
+	}
 }
