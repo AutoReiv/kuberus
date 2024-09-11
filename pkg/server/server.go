@@ -105,7 +105,10 @@ func registerRoutes(mux *http.ServeMux, clientset *kubernetes.Clientset, config 
 	// Cluster role routes
 	apiMux.Handle("/api/clusterroles", http.HandlerFunc(rbac.ClusterRolesHandler(clientset)))
 	apiMux.Handle("/api/clusterroles/details", http.HandlerFunc(rbac.ClusterRoleDetailsHandler(clientset)))
+	// Cluster role bindings routes
 	apiMux.Handle("/api/clusterrolebindings", http.HandlerFunc(rbac.ClusterRoleBindingsHandler(clientset)))
+	apiMux.Handle("/api/clusterrolebinding/details", http.HandlerFunc(rbac.ClusterRoleBindingDetailsHandler(clientset)))
+	
 	apiMux.Handle("/api/resources", http.HandlerFunc(rbac.APIResourcesHandler(clientset)))
 	apiMux.Handle("/api/serviceaccounts", http.HandlerFunc(rbac.ServiceAccountsHandler(clientset)))
 	apiMux.Handle("/api/serviceaccount-details", http.HandlerFunc(rbac.ServiceAccountDetailsHandler(clientset)))

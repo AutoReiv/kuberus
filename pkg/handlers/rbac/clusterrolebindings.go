@@ -92,3 +92,22 @@ func handleDeleteClusterRoleBinding(w http.ResponseWriter, clientset *kubernetes
 	utils.LogAuditEvent("delete", name, "cluster-wide")
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// ClusterRoleBindingDetailsHandler handles fetching detailed information about a specific cluster role binding.
+func ClusterRoleBindingDetailsHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		clusterRoleBindingName := r.URL.Query().Get("name")
+		if clusterRoleBindingName == "" {
+			http.Error(w, "Cluster role binding name is required", http.StatusBadRequest)
+			return
+		}
+
+		clusterRoleBinding, err := clientset.RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterRoleBindingName, metav1.GetOptions{})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		utils.WriteJSON(w, clusterRoleBinding)
+	}
+}
