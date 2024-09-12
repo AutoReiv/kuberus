@@ -5,12 +5,13 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"io"
+	"time"
+
 	"log"
 	"net/http"
 	"rbac/pkg/auth"
 	"rbac/pkg/db"
 	"rbac/pkg/utils"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,6 +34,7 @@ func CreateAdminHandler(w http.ResponseWriter, r *http.Request) {
 
 	var req CreateAdminRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Invalid request payload: %v", err)
 		http.Error(w, "Invalid request payload: "+err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -43,6 +45,7 @@ func CreateAdminHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Validate password strength
 	if !utils.IsStrongPassword(password) {
+		log.Println("Password does not meet strength requirements")
 		http.Error(w, "Password does not meet strength requirements", http.StatusBadRequest)
 		return
 	}
@@ -50,6 +53,7 @@ func CreateAdminHandler(w http.ResponseWriter, r *http.Request) {
 	// Hash the password
 	hashedPassword, err := auth.HashPassword(password)
 	if err != nil {
+		log.Printf("Error hashing password: %v", err)
 		http.Error(w, "Error hashing password: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -58,11 +62,13 @@ func CreateAdminHandler(w http.ResponseWriter, r *http.Request) {
 	var adminExists bool
 	err = db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username = ?)", username).Scan(&adminExists)
 	if err != nil {
+		log.Printf("Error checking admin existence: %v", err)
 		http.Error(w, "Error checking admin existence: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if adminExists {
+		log.Println("Admin account already exists")
 		http.Error(w, "Admin account already exists", http.StatusConflict)
 		return
 	}
@@ -70,10 +76,12 @@ func CreateAdminHandler(w http.ResponseWriter, r *http.Request) {
 	// Store the admin account information
 	_, err = db.DB.Exec("INSERT INTO users (username, password) VALUES (?, ?)", username, hashedPassword)
 	if err != nil {
+		log.Printf("Error creating admin account: %v", err)
 		http.Error(w, "Error creating admin account: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	log.Println("Admin account created successfully")
 	utils.WriteJSON(w, map[string]string{"message": "Admin account created successfully"})
 }
 
