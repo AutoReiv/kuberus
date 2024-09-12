@@ -25,11 +25,11 @@ jobs:
 
       - name: Convert GitHub username to lowercase
         id: lowercase
-        run: echo "::set-output name=username::${{ github.repository_owner }}"
+        run: echo "username=${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v2
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ steps.lowercase.outputs.username }}/rbac/myapp:latest
+          tags: ghcr.io/${{ env.username }}/rbac/myapp:latest
