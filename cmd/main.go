@@ -4,18 +4,21 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"rbac/pkg/db"
 	"rbac/pkg/kubernetes"
 	"rbac/pkg/server"
-
-	"github.com/joho/godotenv"
 )
 
 func main() {
 	// Load environment variables from .env file
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
-	}
+	// Commented out the code that loads the .env file
+	// err := godotenv.Load()
+	// if err != nil {
+	// 	log.Fatalf("Error loading .env file: %v", err)
+	// }
+
+	// Initialize the database
+	db.InitDB("db.db")
 
 	// Create Kubernetes clientset
 	clientset, err := kubernetes.NewClientset()
