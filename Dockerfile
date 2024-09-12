@@ -16,8 +16,8 @@ RUN go mod download
 # Copy the rest of the application code
 COPY . .
 
-# Enable CGO and build the Go application
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o myapp cmd/main.go
+# Build the Go application
+RUN GOOS=linux GOARCH=amd64 go build -o myapp cmd/main.go
 
 # Use a minimal base image for the final container
 FROM alpine:latest
