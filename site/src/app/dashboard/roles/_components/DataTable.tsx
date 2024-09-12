@@ -78,7 +78,6 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Role } from "../../_interfaces/role";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ResponsiveDialog } from "./ResponsiveDialog";
 import Link from "next/link";
@@ -404,8 +403,6 @@ rules:
             <CardDescription>Manage User Roles and Permissions</CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            {/* TODO bulk delete */}
-            {/* <Button onClick={() => bulkDelete()}>Delete</Button> */}
             <Dialog
               onOpenChange={() => {
                 form.reset();
