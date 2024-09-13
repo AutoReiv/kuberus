@@ -297,51 +297,51 @@ const ClusterRoleDetailsPage = ({ params }: { params: { name: string } }) => {
                       {expandedRows.has(index) && (
                         <TableRow>
                           <TableCell colSpan={4}>
-                            <Accordion type="single" collapsible>
+                            {/* <Accordion type="single" collapsible>
                               <AccordionItem value="details">
                                 <AccordionTrigger>
                                   Rule Details
                                 </AccordionTrigger>
-                                <AccordionContent>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                      <strong>API Groups:</strong>
-                                      <ul>
-                                        {rule.apiGroups.map((group, i) => (
-                                          <li key={i}>{group}</li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                    <div>
-                                      <strong>Resources:</strong>
-                                      <ul>
-                                        {rule.resources.map((resource, i) => (
-                                          <li key={i}>{resource}</li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                    <div>
-                                      <strong>Verbs:</strong>
-                                      <ul>
-                                        {rule.verbs.map((verb, i) => (
-                                          <li key={i}>{verb}</li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                    {rule.resourceNames && (
-                                      <div>
-                                        <strong>Resource Names:</strong>
-                                        <ul>
-                                          {rule.resourceNames.map((name, i) => (
-                                            <li key={i}>{name}</li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    )}
-                                  </div>
-                                </AccordionContent>
+                                <AccordionContent> */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <strong>API Groups:</strong>
+                                <ul>
+                                  {rule.apiGroups.map((group, i) => (
+                                    <li key={i}>{group}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div>
+                                <strong>Resources:</strong>
+                                <ul>
+                                  {rule.resources.map((resource, i) => (
+                                    <li key={i}>{resource}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div>
+                                <strong>Verbs:</strong>
+                                <ul>
+                                  {rule.verbs.map((verb, i) => (
+                                    <li key={i}>{verb}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                              {rule.resourceNames && (
+                                <div>
+                                  <strong>Resource Names:</strong>
+                                  <ul>
+                                    {rule.resourceNames.map((name, i) => (
+                                      <li key={i}>{name}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                            {/* </AccordionContent>
                               </AccordionItem>
-                            </Accordion>
+                            </Accordion> */}
                           </TableCell>
                         </TableRow>
                       )}
