@@ -478,6 +478,44 @@ const RoleDetailsPage = ({
     );
   };
 
+  const handleYamlUpdate = async (updatedRules: any, updatedMetadata: any) => {
+    const updatedRoleData = {
+      metadata: updatedMetadata,
+      rules: updatedRules,
+    };
+
+    try {
+      const URL = `http://localhost:8080/api/roles?namespace=${updatedMetadata.namespace}&name=${updatedMetadata.name}`;
+      const response = await fetch(URL, {
+        method: "PUT",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updatedRoleData),
+      });
+
+      if (response.ok) {
+        refetchRoleDetails();
+        toast(
+          <div className="flex items-center justify-start gap-4">
+            <CheckCircle2 className="text-green-500" />
+            <span>Role updated successfully.</span>
+          </div>
+        );
+      } else {
+        throw new Error("Failed to update role");
+      }
+    } catch (error) {
+      toast(
+        <div className="flex items-center justify-start gap-4">
+          <XCircle className="text-red-500" />
+          <span>{`Failed to update role: ${error}`}</span>
+        </div>
+      );
+    }
+  };
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <div className="flex flex-col sm:gap-4">
@@ -538,6 +576,7 @@ const RoleDetailsPage = ({
                       name: roleDetails.role.metadata.name,
                       namespace: roleDetails.role.metadata.namespace,
                     }}
+                    onUpdate={handleYamlUpdate}
                   />
                   <Button
                     onClick={() => exportRoleDetails(roleDetails)}

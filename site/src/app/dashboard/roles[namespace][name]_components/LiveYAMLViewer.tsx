@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Copy, Edit, Save } from "lucide-react";
 import { toast } from "sonner";
 import MonacoEditor from "@monaco-editor/react";
+import * as monaco from 'monaco-editor';
 
 interface LiveYAMLViewerProps {
   rules;
@@ -14,6 +15,30 @@ interface LiveYAMLViewerProps {
   onUpdate: (updatedRules: any, updatedMetadata: any) => void;
 }
 
+
+monaco.editor.defineTheme('custom-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: '7f848e' },
+      { token: 'keyword', foreground: 'c678dd' },
+      { token: 'identifier', foreground: 'e06c75' },
+      { token: 'string', foreground: '98c379' },
+      // Add more token rules as needed
+    ],
+    colors: {
+      'editor.background': '#282c34',
+      'editor.foreground': '#abb2bf',
+      'editor.lineHighlightBackground': '#2c313c',
+      'editorCursor.foreground': '#528bff',
+      'editorWhitespace.foreground': '#3b4048',
+      'editorIndentGuide.background': '#3b4048',
+      'editorIndentGuide.activeBackground': '#7f848e',
+      // Add more color rules as needed
+    },
+  });
+
+  
 const LiveYAMLViewer: React.FC<LiveYAMLViewerProps> = ({ rules, metadata, onUpdate }) => {
   const [yamlContent, setYamlContent] = useState("");
   const [isEditing, setIsEditing] = useState(false);
@@ -98,7 +123,7 @@ const LiveYAMLViewer: React.FC<LiveYAMLViewerProps> = ({ rules, metadata, onUpda
       <MonacoEditor
         height="400px"
         language="yaml"
-        theme="vs-dark"
+        theme="custom-dark"
         value={isEditing ? editedYaml : yamlContent}
         options={{ readOnly: !isEditing }}
         onChange={(value) => isEditing && setEditedYaml(value || "")}
