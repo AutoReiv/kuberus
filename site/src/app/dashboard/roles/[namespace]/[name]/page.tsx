@@ -142,7 +142,6 @@ const fetchRoleDetails = async (namespace: string, name: string) => {
   });
 
   const data = await response.json();
-  console.log(data, " DATA ****");
   return data;
 };
 

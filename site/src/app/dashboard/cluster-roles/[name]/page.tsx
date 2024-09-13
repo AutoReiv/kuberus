@@ -61,7 +61,7 @@ interface ClusterRoleDetails {
 }
 
 const fetchClusterRoleDetails = async (name) => {
-  const URL = `http://localhost:8080//api/clusterroles/details?clusterRoleName=${name}`;
+  const URL = `http://localhost:8080/api/clusterroles/details?clusterRoleName=${name}`;
   const response = await fetch(URL, {
     method: "GET",
     headers: {
