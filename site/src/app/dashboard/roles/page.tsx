@@ -48,7 +48,7 @@ const getNamespaces = async () => {
  */
 const Roles = () => {
   // Get Roles
-  const { data: roles , isPending: isPendingRoles } = useQuery({
+  const { data: roles, isLoading, isError,  } = useQuery({
     queryKey: ["roles"],
     queryFn: getRoles
   }); 
@@ -59,9 +59,13 @@ const Roles = () => {
     queryFn: getNamespaces
   });
   
+  if(isError){
+    return <div>Error</div>
+  }
+
   return (
     <div className="flex w-full flex-col">
-      {isPendingRoles ? <Skeleton className="h-full w-100 m-4"></Skeleton> : <DataTable roles={roles.items} namespace={namespace}></DataTable>}
+      {isLoading ? <Skeleton className="h-full w-100 m-4"></Skeleton> : <DataTable roles={roles} namespace={namespace}></DataTable>}
     </div>
   );
 };
