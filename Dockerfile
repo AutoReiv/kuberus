@@ -1,5 +1,5 @@
 # Use the official Golang image as the base image for building the application
-FROM golang:1.23-alpine as builder
+FROM golang:1.23-alpine AS builder
 
 # Install necessary build dependencies
 RUN apk add --no-cache gcc musl-dev
