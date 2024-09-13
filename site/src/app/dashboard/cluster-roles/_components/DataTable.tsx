@@ -18,14 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  ArrowUpDown,
-  Copy,
-  Edit,
-  Eye,
-  MoreHorizontal,
-  Trash2,
-} from "lucide-react";
+import { ArrowUpDown } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -33,14 +26,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface ClusterRole {
   metadata: {
@@ -57,6 +43,7 @@ interface ClusterRole {
 const DataTable = ({ clusterRoles }: { clusterRoles: ClusterRole[] }) => {
   const [sorting, setSorting] = useState([]);
   const [columnFilters, setColumnFilters] = useState([]);
+  const router = useRouter();
   const columns: ColumnDef<ClusterRole>[] = [
     {
       id: "metadata.name",
@@ -83,50 +70,11 @@ const DataTable = ({ clusterRoles }: { clusterRoles: ClusterRole[] }) => {
         return <span>{rules.length} rule(s)</span>;
       },
     },
-    {
-      id: "actions",
-      cell: ({ row }) => {
-        const clusterRole = row.original;
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => console.log("View", clusterRole)}
-              >
-                <Link
-                  href={`/dashboard/cluster-roles/${clusterRole.metadata.name}`}
-                  className="flex items-center"
-                >
-                  <Eye className="mr-2 h-4 w-4" /> View
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => console.log("Edit", clusterRole)}
-              >
-                <Edit className="mr-2 h-4 w-4" /> Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => console.log("Duplicate", clusterRole)}
-              >
-                <Copy className="mr-2 h-4 w-4" /> Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => console.log("Delete", clusterRole)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
-    },
   ];
+
+  const handleRowClick = (clusterRoleName: string) => {
+    router.push(`/dashboard/cluster-roles/${clusterRoleName}`);
+  };
 
   const table = useReactTable({
     data: clusterRoles,
@@ -195,6 +143,8 @@ const DataTable = ({ clusterRoles }: { clusterRoles: ClusterRole[] }) => {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleRowClick(row.original.metadata.name)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
