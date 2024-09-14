@@ -28,7 +28,7 @@ func RolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 		case http.MethodPut:
 			handleUpdateRole(w, r, clientset, namespace)
 		case http.MethodDelete:
-			handleDeleteRole(w, clientset, namespace, r.URL.Query().Get("name"))
+			handleDeleteRole(w, r, clientset, namespace, r.URL.Query().Get("name"))
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -83,7 +83,7 @@ func handleCreateRole(w http.ResponseWriter, r *http.Request, clientset *kuberne
 		return
 	}
 
-	utils.LogAuditEvent("create", role.Name, namespace)
+	utils.LogAuditEvent(r, "create", role.Name, namespace)
 	utils.WriteJSON(w, createdRole)
 }
 
@@ -106,12 +106,12 @@ func handleUpdateRole(w http.ResponseWriter, r *http.Request, clientset *kuberne
 		return
 	}
 
-	utils.LogAuditEvent("update", role.Name, namespace)
+	utils.LogAuditEvent(r, "update", role.Name, namespace)
 	utils.WriteJSON(w, updatedRole)
 }
 
 // handleDeleteRole handles deleting a role in a specific namespace.
-func handleDeleteRole(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace, name string) {
+func handleDeleteRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset, namespace, name string) {
 	if name == "" {
 		http.Error(w, "Role name is required", http.StatusBadRequest)
 		return
@@ -123,7 +123,7 @@ func handleDeleteRole(w http.ResponseWriter, clientset *kubernetes.Clientset, na
 		return
 	}
 
-	utils.LogAuditEvent("delete", name, namespace)
+	utils.LogAuditEvent(r, "delete", name, namespace)
 	w.WriteHeader(http.StatusNoContent)
 }
 

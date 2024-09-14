@@ -23,7 +23,7 @@ func ClusterRoleBindingsHandler(clientset *kubernetes.Clientset) http.HandlerFun
 		case http.MethodPut:
 			handleUpdateClusterRoleBinding(w, r, clientset)
 		case http.MethodDelete:
-			handleDeleteClusterRoleBinding(w, clientset, r.URL.Query().Get("name"))
+			handleDeleteClusterRoleBinding(w, r, clientset, r.URL.Query().Get("name"))
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -54,7 +54,7 @@ func handleCreateClusterRoleBinding(w http.ResponseWriter, r *http.Request, clie
 		return
 	}
 
-	utils.LogAuditEvent("create", clusterRoleBinding.Name, "cluster-wide")
+	utils.LogAuditEvent(r, "create", clusterRoleBinding.Name, "cluster-wide")
 	utils.WriteJSON(w, createdClusterRoleBinding)
 }
 
@@ -72,12 +72,12 @@ func handleUpdateClusterRoleBinding(w http.ResponseWriter, r *http.Request, clie
 		return
 	}
 
-	utils.LogAuditEvent("update", clusterRoleBinding.Name, "cluster-wide")
+	utils.LogAuditEvent(r, "update", clusterRoleBinding.Name, "cluster-wide")
 	utils.WriteJSON(w, updatedClusterRoleBinding)
 }
 
 // handleDeleteClusterRoleBinding deletes a cluster role binding by name.
-func handleDeleteClusterRoleBinding(w http.ResponseWriter, clientset *kubernetes.Clientset, name string) {
+func handleDeleteClusterRoleBinding(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset, name string) {
 	if name == "" {
 		http.Error(w, "Cluster role binding name is required", http.StatusBadRequest)
 		return
@@ -89,7 +89,7 @@ func handleDeleteClusterRoleBinding(w http.ResponseWriter, clientset *kubernetes
 		return
 	}
 
-	utils.LogAuditEvent("delete", name, "cluster-wide")
+	utils.LogAuditEvent(r, "delete", name, "cluster-wide")
 	w.WriteHeader(http.StatusNoContent)
 }
 
