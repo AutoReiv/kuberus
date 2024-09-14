@@ -55,6 +55,7 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	utils.LogAuditEvent(r, "create_user", username, "N/A")
 	utils.WriteJSON(w, map[string]string{"message": "User account created successfully"})
 }
 
@@ -87,6 +88,7 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	utils.LogAuditEvent(r, "update_user", username, "N/A")
 	utils.WriteJSON(w, map[string]string{"message": "User account updated successfully"})
 }
 
@@ -112,5 +114,6 @@ func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	utils.LogAuditEvent(r, "delete_user", username, "N/A")
 	utils.WriteJSON(w, map[string]string{"message": "User account deleted successfully"})
 }

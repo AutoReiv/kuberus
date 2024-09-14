@@ -82,6 +82,7 @@ func CreateAdminHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("Admin account created successfully")
+	utils.LogAuditEvent(r, "create_admin", username, "N/A")
 	utils.WriteJSON(w, map[string]string{"message": "Admin account created successfully"})
 }
 

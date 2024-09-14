@@ -46,6 +46,7 @@ func SetOIDCConfigHandler(w http.ResponseWriter, r *http.Request) {
 	// Initialize OIDC provider and verifier
 	initOIDCProvider(config)
 
+	utils.LogAuditEvent(r, "set_oidc_config", "OIDC", "N/A")
 	utils.WriteJSON(w, map[string]string{"message": "OIDC configuration set successfully"})
 }
 
