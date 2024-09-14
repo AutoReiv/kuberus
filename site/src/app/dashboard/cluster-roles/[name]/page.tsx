@@ -1,16 +1,7 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/router";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import React, { useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -36,12 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { apiClient } from "@/lib/apiClient";
 
 interface ClusterRoleDetails {
   clusterRole: {
@@ -60,19 +46,6 @@ interface ClusterRoleDetails {
   };
 }
 
-const fetchClusterRoleDetails = async (name) => {
-  const URL = `http://localhost:8080/api/clusterroles/details?clusterRoleName=${name}`;
-  const response = await fetch(URL, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-  });
-  const data = await response.json();
-  return data;
-};
-
 const ClusterRoleDetailsPage = ({ params }: { params: { name: string } }) => {
   const { name } = params;
   const [currentPage, setCurrentPage] = useState(1);
@@ -87,7 +60,7 @@ const ClusterRoleDetailsPage = ({ params }: { params: { name: string } }) => {
     error,
   } = useQuery<ClusterRoleDetails>({
     queryKey: ["clusterRoleDetails", name],
-    queryFn: () => fetchClusterRoleDetails(name),
+    queryFn: () => apiClient.getClusterRoleDetails(name),
   });
 
   const itemsPerPage = 10;

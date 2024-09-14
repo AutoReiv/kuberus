@@ -45,8 +45,7 @@ const Login = () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log(response.headers.getSetCookie())
-        
+        localStorage.setItem('authToken', data.token);
         router.push("/dashboard");
         
         toast("Login successful");

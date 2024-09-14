@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -59,6 +59,7 @@ import LiveYAMLViewer from "./_components/LiveYAMLViewer";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
+import { apiClient } from "@/lib/apiClient";
 
 interface Resources {
   [key: string]: string[];
@@ -131,62 +132,27 @@ const verbs = [
   { name: "Watch" },
 ];
 
-const fetchRoleDetails = async (namespace: string, name: string) => {
-  const URL = `http://localhost:8080/api/roles/details?roleName=${name}&namespace=${namespace}`;
-  const response = await fetch(URL, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-  });
-
-  const data = await response.json();
-  return data;
-};
-
-const fetchResources = async () => {
-  const URL = `http://localhost:8080/api/resources`;
-  const response = await fetch(URL, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-  });
-
-  const data = await response.json();
-  return data;
-};
-
 const RoleDetailsPage = ({
   params,
 }: {
   params: { namespace: string; name: string };
 }) => {
   const { namespace, name } = params;
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const {
-    data: roleDetails,
-    isLoading,
-    error,
-    refetch: refetchRoleDetails,
-  } = useQuery<RoleDetails, Error>({
-    queryKey: ["roleDetails", namespace, name],
-    queryFn: () => fetchRoleDetails(namespace, name),
-  });
-
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newRules, setNewRules] = useState<Rules[]>([]);
-  const [activatedVerbsByRule, setActivatedVerbsByRule] = useState<{
-    [key: number]: string[];
-  }>({});
+  const [activatedVerbsByRule, setActivatedVerbsByRule] = useState<{[key: number]: string[];}>({});
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const { data: roleDetails, isLoading, error, refetch: refetchRoleDetails } = useQuery<RoleDetails, Error>({
+    queryKey: ["roleDetails", namespace, name],
+    queryFn: () => apiClient.getRoleDetails(namespace, name),
+  });
 
   const { data: resources } = useQuery<Resources, Error>({
     queryKey: ["resources"],
-    queryFn: () => fetchResources(),
+    queryFn: () => apiClient.getResources(),
   });
 
   const form = useForm<NewRuleFormValues>({
