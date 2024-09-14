@@ -1,6 +1,8 @@
 package utils
 
 import (
+    "crypto/sha256"
+    "encoding/hex"
     "log"
     "net/http"
     "rbac/pkg/db"
@@ -13,10 +15,15 @@ func LogAuditEvent(r *http.Request, action, resourceName, namespace string) {
     ipAddress := r.RemoteAddr
     timestamp := time.Now().Format(time.RFC3339)
 
-    log.Printf("Audit event: user=%s, action=%s, resource=%s, namespace=%s, ip=%s, timestamp=%s", username, action, resourceName, namespace, ipAddress, timestamp)
+    // Create a hash of the log entry
+    logEntry := username + action + resourceName + namespace + ipAddress + timestamp
+    hash := sha256.Sum256([]byte(logEntry))
+    hashString := hex.EncodeToString(hash[:])
 
-    _, err := db.DB.Exec("INSERT INTO audit_logs (username, action, resource_name, namespace, ip_address, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-        username, action, resourceName, namespace, ipAddress, timestamp)
+    log.Printf("Audit event: user=%s, action=%s, resource=%s, namespace=%s, ip=%s, timestamp=%s, hash=%s", username, action, resourceName, namespace, ipAddress, timestamp, hashString)
+
+    _, err := db.DB.Exec("INSERT INTO audit_logs (username, action, resource_name, namespace, ip_address, timestamp, hash) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        username, action, resourceName, namespace, ipAddress, timestamp, hashString)
     if err != nil {
         log.Printf("Error logging audit event to database: %v", err)
     }

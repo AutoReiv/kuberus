@@ -41,7 +41,8 @@ func createTables() {
         action TEXT NOT NULL,
         resource_name TEXT NOT NULL,
         namespace TEXT NOT NULL,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        hash TEXT
     );`
 
 	_, err := DB.Exec(createUserTable)
