@@ -36,6 +36,16 @@ const SideNav = () => {
       icon: "",
       path: "/dashboard/cluster-role-bindings",
     },
+    {
+      name: "Service Accounts",
+      icon: "",
+      path: "/dashboard/service-accounts",
+    },
+    {
+      name: "Groups",
+      icon: "",
+      path: "/dashboard/groups",
+    },
   ];
   return (
     <div className="hidden border-r bg-muted/40 md:block max-h-screen">
