@@ -35,6 +35,27 @@ func RolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 	}
 }
 
+// IsRoleActive checks if a role is active by looking for any role bindings that reference it.
+func IsRoleActive(clientset *kubernetes.Clientset, roleName, namespace string) (bool, error) {
+	// Check RoleBindings in the namespace
+	roleBindings, err := clientset.RbacV1().RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return false, err
+	}
+	for _, rb := range roleBindings.Items {
+		if rb.RoleRef.Name == roleName {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// RoleWithStatus represents a role with its active status.
+type RoleWithStatus struct {
+	rbacv1.Role
+	Active bool `json:"active"`
+}
+
 // handleGetRoles handles listing roles in a specific namespace or across all namespaces.
 func handleGetRoles(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace string) {
 	if namespace == "all" {
@@ -51,7 +72,18 @@ func listNamespaceRoles(w http.ResponseWriter, clientset *kubernetes.Clientset, 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	utils.WriteJSON(w, roles.Items)
+
+	var rolesWithStatus []RoleWithStatus
+	for _, role := range roles.Items {
+		active, err := IsRoleActive(clientset, role.Name, namespace)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rolesWithStatus = append(rolesWithStatus, RoleWithStatus{Role: role, Active: active})
+	}
+
+	utils.WriteJSON(w, rolesWithStatus)
 }
 
 // listAllNamespacesRoles lists roles across all namespaces.
@@ -61,7 +93,18 @@ func listAllNamespacesRoles(w http.ResponseWriter, clientset *kubernetes.Clients
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	utils.WriteJSON(w, roles.Items)
+
+	var rolesWithStatus []RoleWithStatus
+	for _, role := range roles.Items {
+		active, err := IsRoleActive(clientset, role.Name, role.Namespace)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rolesWithStatus = append(rolesWithStatus, RoleWithStatus{Role: role, Active: active})
+	}
+
+	utils.WriteJSON(w, rolesWithStatus)
 }
 
 // handleCreateRole handles creating a new role in a specific namespace.
@@ -127,6 +170,13 @@ func handleDeleteRole(w http.ResponseWriter, r *http.Request, clientset *kuberne
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// RoleDetailsResponse represents the detailed information about a role.
+type RoleDetailsResponse struct {
+	Role         *rbacv1.Role         `json:"role"`
+	RoleBindings []rbacv1.RoleBinding `json:"roleBindings"`
+	Active       bool                 `json:"active"`
+}
+
 // RoleDetailsHandler handles fetching detailed information about a specific role.
 func RoleDetailsHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -156,9 +206,16 @@ func getRoleDetails(w http.ResponseWriter, r *http.Request, clientset *kubernete
 
 	associatedBindings := filterRoleBindings(roleBindings.Items, roleName)
 
+	active, err := IsRoleActive(clientset, roleName, namespace)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	response := RoleDetailsResponse{
 		Role:         role,
 		RoleBindings: associatedBindings,
+		Active:       active,
 	}
 
 	utils.WriteJSON(w, response)
@@ -173,12 +230,6 @@ func filterRoleBindings(roleBindings []rbacv1.RoleBinding, roleName string) []rb
 		}
 	}
 	return associatedBindings
-}
-
-// RoleDetailsResponse represents the detailed information about a role.
-type RoleDetailsResponse struct {
-	Role         *rbacv1.Role         `json:"role"`
-	RoleBindings []rbacv1.RoleBinding `json:"roleBindings"`
 }
 
 // validateRole ensures that the role is valid.

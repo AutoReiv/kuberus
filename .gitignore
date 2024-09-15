@@ -2,6 +2,7 @@
 db.db
 .env
 
+
 # Other common ignores
 *.log
 *.tmp

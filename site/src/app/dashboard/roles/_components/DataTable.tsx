@@ -1,6 +1,11 @@
 "use client";
 
-import { ArrowUpDown, CheckCircle2, MoreHorizontal } from "lucide-react";
+import {
+  ArrowUpDown,
+  CheckCircle2,
+  MoreHorizontal,
+  XCircle,
+} from "lucide-react";
 import YamlEditor from "@focus-reactive/react-yaml";
 
 import { Button } from "@/components/ui/button";
@@ -73,10 +78,34 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Role } from "../../_interfaces/role";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ResponsiveDialog } from "./ResponsiveDialog";
 import Link from "next/link";
+
+const badges = [
+  { name: "Create" },
+  { name: "Delete" },
+  { name: "Get" },
+  { name: "List" },
+  { name: "Patch" },
+  { name: "Update" },
+  { name: "Watch" },
+];
+
+const formSchema = z.object({
+  nameOfRole: z
+    .string()
+    .min(2, "Please have at least 2 characters in your name.")
+    .max(50, "50 characters is the max allowed")
+    .refine(
+      (value) => !/\s/.test(value),
+      "Spaces are not allowed in the role name"
+    ),
+  namespaceForRole: z.string().min(1, "Please select an option"),
+  badges: z.array(z.string()).refine((value) => value.some((item) => item), {
+    message: "You have to select at least one item.",
+  }),
+});
 
 export default function DataTable({ roles, namespace }) {
   const [data, setData] = useState(roles);
@@ -84,18 +113,21 @@ export default function DataTable({ roles, namespace }) {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState({});
   const [createRoleDialogOpen, setCreateRoleDialogOpen] = useState(false);
-  const [deleteConfirmationDialog, setDeleteConfirmationDialog] =
-    useState(false);
+  const [deleteConfirmationDialogs, setDeleteConfirmationDialogs] = useState<
+    Record<string, boolean>
+  >({});
 
-  const badges = [
-    { name: "Create" },
-    { name: "Delete" },
-    { name: "Get" },
-    { name: "List" },
-    { name: "Patch" },
-    { name: "Update" },
-    { name: "Watch" },
-  ];
+  const setDeleteConfirmationDialog = (key: string, isOpen: boolean) => {
+    setDeleteConfirmationDialogs((prev) => ({ ...prev, [key]: isOpen }));
+  };
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      nameOfRole: "",
+      namespaceForRole: "",
+      badges: ["Create"],
+    },
+  });
 
   const yaml = require("js-yaml");
   const yamlText = `apiVersion: rbac.authorization.k8s.io/v1
@@ -165,26 +197,42 @@ rules:
   };
 
   const deleteRole = async (namespace, name) => {
+    const dialogKey = `${namespace}-${name}`;
     const URL = `http://localhost:8080/api/roles?namespace=${namespace}&name=${name}`;
-    await fetch(URL, {
+    const response = await fetch(URL, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
       },
     });
 
-    setData((prevData) =>
-      prevData.filter((role) => role.metadata.name !== name)
-    );
+    if (response.ok) {
+      setData((prevData) =>
+        prevData.filter(
+          (role) =>
+            !(
+              role.metadata.name === name &&
+              role.metadata.namespace === namespace
+            )
+        )
+      );
 
-    toast(
-      <div className="flex items-center justify-start gap-4">
-        <CheckCircle2 className="text-green-500" />
-        <span>{`Successfully deleted ${name} in the ${namespace} namespace.`}</span>
-      </div>
-    );
+      toast(
+        <div className="flex items-center justify-start gap-4">
+          <CheckCircle2 className="text-green-500" />
+          <span>{`Successfully deleted ${name} in the ${namespace} namespace.`}</span>
+        </div>
+      );
+    } else {
+      toast(
+        <div className="flex items-center justify-start gap-4">
+          <XCircle className="text-red-500" />
+          <span>{`Failed to delete ${name} in the ${namespace} namespace.`}</span>
+        </div>
+      );
+    }
 
-    setDeleteConfirmationDialog(false);
+    setDeleteConfirmationDialog(dialogKey, false);
   };
 
   const columns: ColumnDef<Role>[] = [
@@ -273,24 +321,29 @@ rules:
       accessorKey: "metadata",
       cell: ({ row }) => {
         const { namespace, name } = row.original.metadata;
-        const id = row.original.metadata.name;
+        const dialogKey = `${namespace}-${name}`;
         return (
           <>
             <ResponsiveDialog
-              isOpen={deleteConfirmationDialog}
-              setIsOpen={setDeleteConfirmationDialog}
+              isOpen={deleteConfirmationDialogs[dialogKey] || false}
+              setIsOpen={(isOpen) =>
+                setDeleteConfirmationDialog(dialogKey, isOpen === true)
+              }
               title="Delete Role"
               description="Are you sure you want to delete this role?"
             >
               <Button
                 variant="destructive"
-                onClick={() => deleteRole(namespace, name)}
+                onClick={() => {
+                  deleteRole(namespace, name);
+                  setDeleteConfirmationDialog(dialogKey, false);
+                }}
               >
                 Confirm
               </Button>
               <Button
                 variant="ghost"
-                onClick={() => setDeleteConfirmationDialog(false)}
+                onClick={() => setDeleteConfirmationDialog(dialogKey, false)}
               >
                 Cancel
               </Button>
@@ -305,11 +358,10 @@ rules:
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuItem>Edit</DropdownMenuItem>
-                {/* <DropdownMenuItem onClick={() => deleteRole(namespace, name)}>
-                Delete
-              </DropdownMenuItem> */}
                 <DropdownMenuItem>
-                  <button onClick={() => setDeleteConfirmationDialog(true)}>
+                  <button
+                    onClick={() => setDeleteConfirmationDialog(dialogKey, true)}
+                  >
                     Delete
                   </button>
                 </DropdownMenuItem>
@@ -338,26 +390,6 @@ rules:
     },
   });
 
-  const formSchema = z.object({
-    nameOfRole: z
-      .string()
-      .min(2, "Please have at least 2 characters in your name.")
-      .max(50, "50 characters is the max allowed"),
-    namespaceForRole: z.string().min(1, "Please select an option"),
-    badges: z.array(z.string()).refine((value) => value.some((item) => item), {
-      message: "You have to select at least one item.",
-    }),
-  });
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      nameOfRole: "",
-      namespaceForRole: "",
-      badges: ["Create"],
-    },
-  });
-
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     createRole(values, true);
   };
@@ -371,8 +403,6 @@ rules:
             <CardDescription>Manage User Roles and Permissions</CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            {/* TODO bulk delete */}
-            {/* <Button onClick={() => bulkDelete()}>Delete</Button> */}
             <Dialog
               onOpenChange={() => {
                 form.reset();
