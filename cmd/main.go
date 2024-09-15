@@ -1,11 +1,20 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"rbac/pkg/db"
 	"rbac/pkg/kubernetes"
 	"rbac/pkg/server"
+
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
@@ -18,22 +27,36 @@ func main() {
 		log.Fatalf("Error creating Kubernetes clientset: %v", err)
 	}
 
+	// Create Echo instance
+	e := echo.New()
+
+	// Middleware
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+	e.Use(middleware.Secure())
+
 	// Load server configuration
 	serverConfig := server.NewConfig()
 
-	// Create and start the server
-	srv := server.NewServer(clientset, serverConfig)
-	log.Printf("Starting server on port %s", serverConfig.Port)
+	// Register routes
+	server.RegisterRoutes(e, clientset, serverConfig)
 
-	if serverConfig.IsDevMode {
-		// In development mode, use HTTP
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed: %v", err)
+	// Start server
+	go func() {
+		if err := e.Start(":" + serverConfig.Port); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Shutting down the server: %v", err)
 		}
-	} else {
-		// In production mode, use HTTPS with certificates managed by the handler
-		if err := server.StartServer(srv, serverConfig); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed: %v", err)
-		}
+	}()
+
+	// Graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := e.Shutdown(ctx); err != nil {
+		log.Fatal(err)
 	}
 }

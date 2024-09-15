@@ -2,128 +2,118 @@ package rbac
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"rbac/pkg/utils"
 
+	"github.com/labstack/echo/v4"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // RoleBindingsHandler handles role binding-related requests.
-func RoleBindingsHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		namespace := r.URL.Query().Get("namespace")
+func RoleBindingsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		namespace := c.QueryParam("namespace")
 		if namespace == "" {
 			namespace = "default"
 		}
 
-		switch r.Method {
+		switch c.Request().Method {
 		case http.MethodGet:
-			handleListRoleBindings(w, clientset, namespace)
+			return handleListRoleBindings(c, clientset, namespace)
 		case http.MethodPost:
-			handleCreateRoleBinding(w, r, clientset, namespace)
+			return handleCreateRoleBinding(c, clientset, namespace)
 		case http.MethodPut:
-			handleUpdateRoleBinding(w, r, clientset, namespace)
+			return handleUpdateRoleBinding(c, clientset, namespace)
 		case http.MethodDelete:
-			handleDeleteRoleBinding(w, r, clientset, namespace, r.URL.Query().Get("name"))
+			return handleDeleteRoleBinding(c, clientset, namespace, c.QueryParam("name"))
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return echo.NewHTTPError(http.StatusMethodNotAllowed, "Method not allowed")
 		}
 	}
 }
 
 // handleListRoleBindings lists all role bindings in a specific namespace.
-func handleListRoleBindings(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace string) {
+func handleListRoleBindings(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
 	roleBindings, err := clientset.RbacV1().RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
-	utils.WriteJSON(w, roleBindings.Items)
+	return c.JSON(http.StatusOK, roleBindings.Items)
 }
 
 // handleCreateRoleBinding creates a new role binding in a specific namespace.
-func handleCreateRoleBinding(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset, namespace string) {
+func handleCreateRoleBinding(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
 	var roleBinding rbacv1.RoleBinding
-	if err := json.NewDecoder(r.Body).Decode(&roleBinding); err != nil {
-		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
-		return
+	if err := c.Bind(&roleBinding); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Failed to decode request body: "+err.Error())
 	}
 
 	if err := validateRoleBinding(&roleBinding); err != nil {
-		http.Error(w, "Invalid role binding: "+err.Error(), http.StatusBadRequest)
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid role binding: "+err.Error())
 	}
 
 	createdRoleBinding, err := clientset.RbacV1().RoleBindings(namespace).Create(context.TODO(), &roleBinding, metav1.CreateOptions{})
 	if err != nil {
-		http.Error(w, "Failed to create role binding: "+err.Error(), http.StatusInternalServerError)
-		return
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create role binding: "+err.Error())
 	}
 
-	utils.LogAuditEvent(r, "create", roleBinding.Name, namespace)
-	utils.WriteJSON(w, createdRoleBinding)
+	utils.LogAuditEvent(c.Request(), "create", roleBinding.Name, namespace)
+	return c.JSON(http.StatusOK, createdRoleBinding)
 }
 
 // handleUpdateRoleBinding updates an existing role binding in a specific namespace.
-func handleUpdateRoleBinding(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset, namespace string) {
+func handleUpdateRoleBinding(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
 	var roleBinding rbacv1.RoleBinding
-	if err := json.NewDecoder(r.Body).Decode(&roleBinding); err != nil {
-		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
-		return
+	if err := c.Bind(&roleBinding); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Failed to decode request body: "+err.Error())
 	}
 
 	if err := validateRoleBinding(&roleBinding); err != nil {
-		http.Error(w, "Invalid role binding: "+err.Error(), http.StatusBadRequest)
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid role binding: "+err.Error())
 	}
 
 	updatedRoleBinding, err := clientset.RbacV1().RoleBindings(namespace).Update(context.TODO(), &roleBinding, metav1.UpdateOptions{})
 	if err != nil {
-		http.Error(w, "Failed to update role binding: "+err.Error(), http.StatusInternalServerError)
-		return
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update role binding: "+err.Error())
 	}
 
-	utils.LogAuditEvent(r, "update", roleBinding.Name, namespace)
-	utils.WriteJSON(w, updatedRoleBinding)
+	utils.LogAuditEvent(c.Request(), "update", roleBinding.Name, namespace)
+	return c.JSON(http.StatusOK, updatedRoleBinding)
 }
 
 // handleDeleteRoleBinding deletes a role binding in a specific namespace.
-func handleDeleteRoleBinding(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset, namespace, name string) {
+func handleDeleteRoleBinding(c echo.Context, clientset *kubernetes.Clientset, namespace, name string) error {
 	if name == "" {
-		http.Error(w, "Role binding name is required", http.StatusBadRequest)
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, "Role binding name is required")
 	}
 
 	err := clientset.RbacV1().RoleBindings(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
-		http.Error(w, "Failed to delete role binding: "+err.Error(), http.StatusInternalServerError)
-		return
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete role binding: "+err.Error())
 	}
 
-	utils.LogAuditEvent(r, "delete", name, namespace)
-	w.WriteHeader(http.StatusNoContent)
+	utils.LogAuditEvent(c.Request(), "delete", name, namespace)
+	return c.NoContent(http.StatusNoContent)
 }
 
 // RoleBindingDetailsHandler handles fetching detailed information about a specific role binding.
-func RoleBindingDetailsHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		roleBindingName := r.URL.Query().Get("name")
-		namespace := r.URL.Query().Get("namespace")
+func RoleBindingDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		roleBindingName := c.QueryParam("name")
+		namespace := c.QueryParam("namespace")
 		if namespace == "" {
 			namespace = "default"
 		}
 
 		roleBinding, err := clientset.RbacV1().RoleBindings(namespace).Get(context.TODO(), roleBindingName, metav1.GetOptions{})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
 
-		utils.WriteJSON(w, roleBinding)
+		return c.JSON(http.StatusOK, roleBinding)
 	}
 }
 
