@@ -104,3 +104,28 @@ func GetOIDCConfig() (*OIDCConfig, error) {
 	}
 	return &config, nil
 }
+
+// User represents a user account.
+type User struct {
+	Username string `json:"username"`
+}
+
+// GetAllUsers retrieves all user accounts.
+func GetAllUsers() ([]User, error) {
+	rows, err := db.DB.Query("SELECT username FROM users")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var user User
+		if err := rows.Scan(&user.Username); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}

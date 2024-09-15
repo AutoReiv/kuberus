@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"rbac/pkg/auth"
 	"rbac/pkg/utils"
+
+	"k8s.io/client-go/kubernetes"
 )
 
 // CreateUserRequest represents the request payload for creating a user.
@@ -26,13 +28,25 @@ type DeleteUserRequest struct {
 	Username string `json:"username" binding:"required"`
 }
 
-// CreateUserHandler handles the creation of a user account.
-func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
+// UserManagementHandler handles user management-related requests.
+func UserManagementHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			handleCreateUser(w, r)
+		case http.MethodPut:
+			handleUpdateUser(w, r)
+		case http.MethodDelete:
+			handleDeleteUser(w, r)
+		case http.MethodGet:
+			handleListUsers(w)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
 	}
+}
 
+func handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	var req CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request payload: "+err.Error(), http.StatusBadRequest)
@@ -59,13 +73,7 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, map[string]string{"message": "User account created successfully"})
 }
 
-// UpdateUserHandler handles updating a user's password.
-func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	var req UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request payload: "+err.Error(), http.StatusBadRequest)
@@ -92,13 +100,7 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, map[string]string{"message": "User account updated successfully"})
 }
 
-// DeleteUserHandler handles deleting a user account.
-func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	var req DeleteUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request payload: "+err.Error(), http.StatusBadRequest)
@@ -116,4 +118,14 @@ func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	utils.LogAuditEvent(r, "delete_user", username, "N/A")
 	utils.WriteJSON(w, map[string]string{"message": "User account deleted successfully"})
+}
+
+func handleListUsers(w http.ResponseWriter) {
+	users, err := auth.GetAllUsers()
+	if err != nil {
+		http.Error(w, "Error retrieving users: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(w, users)
 }
