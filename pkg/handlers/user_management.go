@@ -6,6 +6,7 @@ import (
 	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -49,6 +50,7 @@ func UserManagementHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 func handleCreateUser(c echo.Context) error {
 	var req CreateUserRequest
 	if err := c.Bind(&req); err != nil {
+		utils.Logger.Error("Invalid request payload", zap.Error(err))
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
 	}
 
@@ -58,14 +60,17 @@ func handleCreateUser(c echo.Context) error {
 
 	// Validate password strength
 	if !utils.IsStrongPassword(password) {
+		utils.Logger.Warn("Password does not meet strength requirements")
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Password does not meet strength requirements"})
 	}
 
 	// Create user
 	if err := auth.CreateUser(username, password); err != nil {
+		utils.Logger.Error("Error creating user", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error creating user: " + err.Error()})
 	}
 
+	utils.Logger.Info("User account created successfully", zap.String("username", username))
 	utils.LogAuditEvent(c.Request(), "create_user", username, "N/A")
 	return c.JSON(http.StatusOK, map[string]string{"message": "User account created successfully"})
 }
@@ -73,6 +78,7 @@ func handleCreateUser(c echo.Context) error {
 func handleUpdateUser(c echo.Context) error {
 	var req UpdateUserRequest
 	if err := c.Bind(&req); err != nil {
+		utils.Logger.Error("Invalid request payload", zap.Error(err))
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
 	}
 
@@ -82,14 +88,17 @@ func handleUpdateUser(c echo.Context) error {
 
 	// Validate password strength
 	if !utils.IsStrongPassword(password) {
+		utils.Logger.Warn("Password does not meet strength requirements")
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Password does not meet strength requirements"})
 	}
 
 	// Update user
 	if err := auth.UpdateUser(username, password); err != nil {
+		utils.Logger.Error("Error updating user password", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error updating user: " + err.Error()})
 	}
 
+	utils.Logger.Info("User account updated successfully", zap.String("username", username))
 	utils.LogAuditEvent(c.Request(), "update_user", username, "N/A")
 	return c.JSON(http.StatusOK, map[string]string{"message": "User account updated successfully"})
 }
@@ -97,6 +106,7 @@ func handleUpdateUser(c echo.Context) error {
 func handleDeleteUser(c echo.Context) error {
 	var req DeleteUserRequest
 	if err := c.Bind(&req); err != nil {
+		utils.Logger.Error("Invalid request payload", zap.Error(err))
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
 	}
 
@@ -105,9 +115,11 @@ func handleDeleteUser(c echo.Context) error {
 
 	// Delete user
 	if err := auth.DeleteUser(username); err != nil {
+		utils.Logger.Error("Error deleting user", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error deleting user: " + err.Error()})
 	}
 
+	utils.Logger.Info("User account deleted successfully", zap.String("username", username))
 	utils.LogAuditEvent(c.Request(), "delete_user", username, "N/A")
 	return c.JSON(http.StatusOK, map[string]string{"message": "User account deleted successfully"})
 }
@@ -115,8 +127,10 @@ func handleDeleteUser(c echo.Context) error {
 func handleListUsers(c echo.Context) error {
 	users, err := auth.GetAllUsers()
 	if err != nil {
+		utils.Logger.Error("Error retrieving users", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error retrieving users: " + err.Error()})
 	}
 
+	utils.Logger.Info("Retrieved user list successfully")
 	return c.JSON(http.StatusOK, users)
 }

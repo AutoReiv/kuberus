@@ -2,10 +2,11 @@ package auth
 
 import (
 	"crypto/rand"
-	"log"
+	"go.uber.org/zap"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"rbac/pkg/utils"
 )
 
 var JwtKey []byte
@@ -20,7 +21,7 @@ func generateRandomKey(length int) []byte {
 	key := make([]byte, length)
 	_, err := rand.Read(key)
 	if err != nil {
-		panic("Failed to generate random key: " + err.Error())
+		utils.Logger.Fatal("Failed to generate random key", zap.Error(err))
 	}
 	return key
 }
@@ -48,14 +49,14 @@ func GenerateJWT(username string) (string, error) {
 	}
 
 	// Debug statement
-	log.Printf("Generated JWT: %s", tokenString)
+	utils.Logger.Debug("Generated JWT", zap.String("token", tokenString))
 	return tokenString, nil
 }
 
 // ValidateJWT validates a JWT token and returns the claims if valid
 func ValidateJWT(tokenStr string) (*Claims, error) {
 	// Debug statement
-	log.Printf("Validating JWT: %s", tokenStr)
+	utils.Logger.Debug("Validating JWT", zap.String("token", tokenStr))
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
 		return JwtKey, nil
@@ -63,13 +64,13 @@ func ValidateJWT(tokenStr string) (*Claims, error) {
 
 	if err != nil {
 		// Debug statement
-		log.Printf("Validation error: %v", err)
+		utils.Logger.Error("Validation error", zap.Error(err))
 		return nil, err
 	}
 
 	if !token.Valid {
 		// Debug statement
-		log.Println("Invalid token signature")
+		utils.Logger.Warn("Invalid token signature")
 		return nil, jwt.ErrSignatureInvalid
 	}
 

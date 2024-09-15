@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"log"
 	"net/http"
 	"rbac/pkg/auth"
 	"rbac/pkg/db"
 	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 // CreateAdminRequest represents the request payload for creating an admin account.
@@ -25,7 +25,7 @@ func CreateAdminHandler(c echo.Context) error {
 
 	var req CreateAdminRequest
 	if err := c.Bind(&req); err != nil {
-		log.Printf("Invalid request payload: %v", err)
+		utils.Logger.Error("Invalid request payload", zap.Error(err))
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload: "+err.Error())
 	}
 
@@ -35,14 +35,14 @@ func CreateAdminHandler(c echo.Context) error {
 
 	// Validate password strength
 	if !utils.IsStrongPassword(password) {
-		log.Println("Password does not meet strength requirements")
+		utils.Logger.Warn("Password does not meet strength requirements")
 		return echo.NewHTTPError(http.StatusBadRequest, "Password does not meet strength requirements")
 	}
 
 	// Hash the password
 	hashedPassword, err := auth.HashPassword(password)
 	if err != nil {
-		log.Printf("Error hashing password: %v", err)
+		utils.Logger.Error("Error hashing password", zap.Error(err))
 		return echo.NewHTTPError(http.StatusInternalServerError, "Error hashing password: "+err.Error())
 	}
 
@@ -50,23 +50,23 @@ func CreateAdminHandler(c echo.Context) error {
 	var adminExists bool
 	err = db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username = ?)", username).Scan(&adminExists)
 	if err != nil {
-		log.Printf("Error checking admin existence: %v", err)
+		utils.Logger.Error("Error checking admin existence", zap.Error(err))
 		return echo.NewHTTPError(http.StatusInternalServerError, "Error checking admin existence: "+err.Error())
 	}
 
 	if adminExists {
-		log.Println("Admin account already exists")
+		utils.Logger.Warn("Admin account already exists")
 		return echo.NewHTTPError(http.StatusConflict, "Admin account already exists")
 	}
 
 	// Store the admin account information
 	_, err = db.DB.Exec("INSERT INTO users (username, password) VALUES (?, ?)", username, hashedPassword)
 	if err != nil {
-		log.Printf("Error creating admin account: %v", err)
+		utils.Logger.Error("Error creating admin account", zap.Error(err))
 		return echo.NewHTTPError(http.StatusInternalServerError, "Error creating admin account: "+err.Error())
 	}
 
-	log.Println("Admin account created successfully")
+	utils.Logger.Info("Admin account created successfully", zap.String("username", username))
 	utils.LogAuditEvent(c.Request(), "create_admin", username, "N/A")
 	return c.JSON(http.StatusOK, map[string]string{"message": "Admin account created successfully"})
 }
