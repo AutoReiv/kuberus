@@ -20,6 +20,9 @@ func ApplyMiddlewares(e *echo.Echo, isDevMode bool) {
 		AllowOrigins: []string{"*"},
 		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},
 	}))
+
+	// Apply rate limiting middleware
+	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(10)))
 }
 
 // AuthMiddleware validates the JWT token and sets the user information in the request context.
