@@ -54,6 +54,9 @@ func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Confi
 
 	// User management routes
 	e.POST("/admin/users", middleware.JWTMiddleware()(handlers.UserManagementHandler(clientset)))
+	e.DELETE("/admin/users", middleware.JWTMiddleware()(handlers.UserManagementHandler(clientset)))
+	e.GET("/admin/users", middleware.JWTMiddleware()(handlers.UserManagementHandler(clientset)))
+	e.PUT("/admin/users", middleware.JWTMiddleware()(handlers.UserManagementHandler(clientset)))
 
 	// Protected API routes
 	api := e.Group("/api", middleware.JWTMiddleware())
