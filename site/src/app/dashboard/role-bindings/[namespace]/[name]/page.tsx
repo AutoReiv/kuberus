@@ -21,6 +21,7 @@ import {
 import SpriteText from "three-spritetext";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
+import { apiClient } from "@/lib/apiClient";
 
 interface RoleBindingDetail {
   metadata: {
@@ -41,19 +42,19 @@ interface RoleBindingDetail {
   };
 }
 
-const fetchRoleBindingDetails = async (namespace, name) => {
-  const URL = `http://localhost:8080/api/rolebinding/details?name=${name}&namespace=${namespace}`;
-  const response = await fetch(URL, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-  });
+// const fetchRoleBindingDetails = async (namespace, name) => {
+//   const URL = `http://localhost:8080/api/rolebinding/details?name=${name}&namespace=${namespace}`;
+//   const response = await fetch(URL, {
+//     method: "GET",
+//     headers: {
+//       Accept: "application/json",
+//       "Content-Type": "application/json",
+//     },
+//   });
 
-  const data = await response.json();
-  return data;
-};
+//   const data = await response.json();
+//   return data;
+// };
 
 const RoleBindingDetailsPage = ({
   params,
@@ -65,11 +66,10 @@ const RoleBindingDetailsPage = ({
   const {
     data: roleBindingDetails,
     isLoading,
-    error,
-    refetch: refetchRoleDetails,
+    error
   } = useQuery<RoleBindingDetail, Error>({
     queryKey: ["roleDetails", namespace, name],
-    queryFn: () => fetchRoleBindingDetails(namespace, name),
+    queryFn: () => apiClient.getRoleBindingDetails(namespace, name),
   });
 
   if (isLoading) {

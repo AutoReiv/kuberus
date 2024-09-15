@@ -4,41 +4,7 @@ import React from "react";
 import DataTable from "./_components/DataTable";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-
-/**
- * Fetches a list of roles from the API.
- * @returns {Promise<any>} - A promise that resolves to the response data from the API.
- */
-const getRoles = async () => {
-  const URL = "http://localhost:8080/api/roles?namespace=all";
-  const response = await fetch(URL, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-  });
-  const data = await response.json();
-  return data;
-};
-
-/**
- * Fetches a list of namespaces from the API.
- * @returns {Promise<any>} - A promise that resolves to the response data from the API.
- */
-const getNamespaces = async () => {
-  const URL = "http://localhost:8080/api/namespaces";
-  const response = await fetch(URL, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-  });
-  const data = await response.json();
-  return data;
-};
+import { apiClient } from "@/lib/apiClient";
 
 /**
  * Renders a component that displays a list of roles and namespaces.
@@ -50,13 +16,13 @@ const Roles = () => {
   // Get Roles
   const { data: roles, isLoading, isError,  } = useQuery({
     queryKey: ["roles"],
-    queryFn: getRoles
+    queryFn: () => apiClient.getRoles()
   }); 
 
   // Get Namespaces
   const { data: namespace } = useQuery({
     queryKey: ["namespace"],
-    queryFn: getNamespaces
+    queryFn: ()=> apiClient.getNamespaces()
   });
   
   if(isError){

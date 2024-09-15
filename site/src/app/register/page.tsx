@@ -23,6 +23,8 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 const formSchema = z
   .object({
@@ -40,6 +42,7 @@ const formSchema = z
   });
 
 const Register = () => {
+  const router = useRouter();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -62,10 +65,13 @@ const Register = () => {
       .then((response) => response.json())
       .then((data: { message: string }) => {
         console.log(data.message);
+        router.push("/login");
+        toast.success("Registration successful!");
         // Handle successful registration (e.g., show a success message, redirect to login page)
       })
       .catch((error) => {
         console.error("Error:", error);
+        toast.error("Registration failed!");
         // Handle registration error (e.g., show an error message)
       });
 
