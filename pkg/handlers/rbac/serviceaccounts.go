@@ -2,75 +2,70 @@ package rbac
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
-	"rbac/pkg/utils"
 
+	"github.com/labstack/echo/v4"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // ServiceAccountsHandler handles requests related to service accounts.
-func ServiceAccountsHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		namespace := r.URL.Query().Get("namespace")
+func ServiceAccountsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		namespace := c.QueryParam("namespace")
 		if namespace == "" {
 			namespace = "default"
 		}
 
-		switch r.Method {
+		switch c.Request().Method {
 		case http.MethodGet:
-			handleListServiceAccounts(w, clientset, namespace)
+			return handleListServiceAccounts(c, clientset, namespace)
 		case http.MethodPost:
-			handleCreateServiceAccount(w, r, clientset, namespace)
+			return handleCreateServiceAccount(c, clientset, namespace)
 		case http.MethodDelete:
-			handleDeleteServiceAccount(w, clientset, namespace, r.URL.Query().Get("name"))
+			return handleDeleteServiceAccount(c, clientset, namespace)
 		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
+			return c.JSON(http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 		}
 	}
 }
 
 // handleListServiceAccounts lists all service accounts in a specific namespace.
-func handleListServiceAccounts(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace string) {
+func handleListServiceAccounts(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
 	serviceAccounts, err := clientset.CoreV1().ServiceAccounts(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
-	utils.WriteJSON(w, serviceAccounts.Items)
+	return c.JSON(http.StatusOK, serviceAccounts.Items)
 }
 
 // handleCreateServiceAccount creates a new service account in a specific namespace.
-func handleCreateServiceAccount(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset, namespace string) {
+func handleCreateServiceAccount(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
 	var serviceAccount corev1.ServiceAccount
-	if err := json.NewDecoder(r.Body).Decode(&serviceAccount); err != nil {
-		http.Error(w, "Failed to decode request body: "+err.Error(), http.StatusBadRequest)
-		return
+	if err := c.Bind(&serviceAccount); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Failed to decode request body: " + err.Error()})
 	}
 
 	createdServiceAccount, err := clientset.CoreV1().ServiceAccounts(namespace).Create(context.TODO(), &serviceAccount, metav1.CreateOptions{})
 	if err != nil {
-		http.Error(w, "Failed to create service account: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create service account: " + err.Error()})
 	}
 
-	utils.WriteJSON(w, createdServiceAccount)
+	return c.JSON(http.StatusOK, createdServiceAccount)
 }
 
 // handleDeleteServiceAccount deletes a service account in a specific namespace.
-func handleDeleteServiceAccount(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace, name string) {
+func handleDeleteServiceAccount(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
+	name := c.QueryParam("name")
 	if name == "" {
-		http.Error(w, "Service account name is required", http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Service account name is required"})
 	}
 
 	err := clientset.CoreV1().ServiceAccounts(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
-		http.Error(w, "Failed to delete service account: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete service account: " + err.Error()})
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	return c.NoContent(http.StatusNoContent)
 }

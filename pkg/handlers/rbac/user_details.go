@@ -3,8 +3,8 @@ package rbac
 import (
 	"context"
 	"net/http"
-	"rbac/pkg/utils"
 
+	"github.com/labstack/echo/v4"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -19,71 +19,68 @@ type UserDetailsResponse struct {
 }
 
 // UserDetailsHandler handles requests for detailed information about a specific user.
-func UserDetailsHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userName := r.URL.Query().Get("userName")
+func UserDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		userName := c.QueryParam("userName")
 		if userName == "" {
-			http.Error(w, "User name is required", http.StatusBadRequest)
-			return
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "User name is required"})
 		}
 
 		roleBindings, err := clientset.RbacV1().RoleBindings("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
 		clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
 		clusterRoles, err := clientset.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
 		userDetails := extractUserDetails(userName, roleBindings.Items, clusterRoleBindings.Items, clusterRoles.Items)
-		utils.WriteJSON(w, userDetails)
+		return c.JSON(http.StatusOK, userDetails)
 	}
 }
-		// extractUserDetails extracts detailed information about a specific user.
-		func extractUserDetails(userName string, roleBindings []rbacv1.RoleBinding, clusterRoleBindings []rbacv1.ClusterRoleBinding, clusterRoles []rbacv1.ClusterRole) UserDetailsResponse {
-			var userRoleBindings []rbacv1.RoleBinding
-			var userClusterRoleBindings []rbacv1.ClusterRoleBinding
-			var userClusterRoles []rbacv1.ClusterRole
 
-			for _, rb := range roleBindings {
-				for _, subject := range rb.Subjects {
-					if subject.Kind == rbacv1.UserKind && subject.Name == userName {
-						userRoleBindings = append(userRoleBindings, rb)
-					}
-				}
-			}
+// extractUserDetails extracts detailed information about a specific user.
+func extractUserDetails(userName string, roleBindings []rbacv1.RoleBinding, clusterRoleBindings []rbacv1.ClusterRoleBinding, clusterRoles []rbacv1.ClusterRole) UserDetailsResponse {
+	var userRoleBindings []rbacv1.RoleBinding
+	var userClusterRoleBindings []rbacv1.ClusterRoleBinding
+	var userClusterRoles []rbacv1.ClusterRole
 
-			for _, crb := range clusterRoleBindings {
-				for _, subject := range crb.Subjects {
-					if subject.Kind == rbacv1.UserKind && subject.Name == userName {
-						userClusterRoleBindings = append(userClusterRoleBindings, crb)
-					}
-				}
-			}
-
-			// Collect ClusterRoles associated with the user's ClusterRoleBindings
-			for _, crb := range userClusterRoleBindings {
-				for _, cr := range clusterRoles {
-					if cr.Name == crb.RoleRef.Name {
-						userClusterRoles = append(userClusterRoles, cr)
-					}
-				}
-			}
-
-			return UserDetailsResponse{
-				UserName:            userName,
-				RoleBindings:        userRoleBindings,
-				ClusterRoleBindings: userClusterRoleBindings,
-				ClusterRoles:        userClusterRoles,
+	for _, rb := range roleBindings {
+		for _, subject := range rb.Subjects {
+			if subject.Kind == rbacv1.UserKind && subject.Name == userName {
+				userRoleBindings = append(userRoleBindings, rb)
 			}
 		}
+	}
+
+	for _, crb := range clusterRoleBindings {
+		for _, subject := range crb.Subjects {
+			if subject.Kind == rbacv1.UserKind && subject.Name == userName {
+				userClusterRoleBindings = append(userClusterRoleBindings, crb)
+			}
+		}
+	}
+
+	// Collect ClusterRoles associated with the user's ClusterRoleBindings
+	for _, crb := range userClusterRoleBindings {
+		for _, cr := range clusterRoles {
+			if cr.Name == crb.RoleRef.Name {
+				userClusterRoles = append(userClusterRoles, cr)
+			}
+		}
+	}
+
+	return UserDetailsResponse{
+		UserName:            userName,
+		RoleBindings:        userRoleBindings,
+		ClusterRoleBindings: userClusterRoleBindings,
+		ClusterRoles:        userClusterRoles,
+	}
+}

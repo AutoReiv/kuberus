@@ -1,79 +1,60 @@
 package middleware
 
 import (
-	"context"
-	"log"
 	"net/http"
 	"rbac/pkg/auth"
 	"strings"
-	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	jwtMiddleware "github.com/labstack/echo-jwt/v4"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
-// ApplyMiddlewares applies all the middlewares to the given handler.
-func ApplyMiddlewares(handler http.Handler, isDevMode bool) http.Handler {
-	if isDevMode {
-		log.Println("Development mode: Applying middlewares")
-	}
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		loggingMiddleware(recoveryMiddleware(secureHeadersMiddleware(handler))).ServeHTTP(w, r)
-	})
-}
+// ApplyMiddlewares applies all the middlewares to the given Echo instance.
+func ApplyMiddlewares(e *echo.Echo, isDevMode bool) {
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+	e.Use(middleware.Secure())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},
+	}))
 
-// loggingMiddleware logs the details of each HTTP request.
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("%s %s %s", r.Method, r.RequestURI, time.Since(start))
-	})
-}
-
-// recoveryMiddleware recovers from any panics and writes a 500 if there was one.
-func recoveryMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			}
-		}()
-		next.ServeHTTP(w, r)
-	})
-}
-
-// secureHeadersMiddleware adds security-related headers to the response.
-func secureHeadersMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", "default-src 'self'")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("X-XSS-Protection", "1; mode=block")
-		next.ServeHTTP(w, r)
-	})
+	// Apply rate limiting middleware
+	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(10)))
 }
 
 // AuthMiddleware validates the JWT token and sets the user information in the request context.
-func AuthMiddleware(next http.Handler, isDevMode bool) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func AuthMiddleware(next echo.HandlerFunc, isDevMode bool) echo.HandlerFunc {
+	return func(c echo.Context) error {
 		if isDevMode {
-			next.ServeHTTP(w, r)
-			return
+			return next(c)
 		}
 
-		authHeader := r.Header.Get("Authorization")
+		authHeader := c.Request().Header.Get("Authorization")
 		if authHeader == "" {
-			http.Error(w, "Authorization header is required", http.StatusUnauthorized)
-			return
+			return echo.NewHTTPError(http.StatusUnauthorized, "Authorization header is required")
 		}
 
 		token := strings.TrimPrefix(authHeader, "Bearer ")
 		claims, err := auth.ValidateJWT(token)
 		if err != nil {
-			http.Error(w, "Invalid token: "+err.Error(), http.StatusUnauthorized)
-			return
+			return echo.NewHTTPError(http.StatusUnauthorized, "Invalid token: "+err.Error())
 		}
 
 		// Add username to context
-		ctx := context.WithValue(r.Context(), "username", claims.Username)
-		next.ServeHTTP(w, r.WithContext(ctx))
+		c.Set("username", claims.Username)
+		return next(c)
+	}
+}
+
+// JWTMiddleware returns the JWT middleware configuration.
+func JWTMiddleware() echo.MiddlewareFunc {
+	return jwtMiddleware.WithConfig(jwtMiddleware.Config{
+		SigningKey: auth.JwtKey,
+		NewClaimsFunc: func(c echo.Context) jwt.Claims {
+			return new(auth.Claims)
+		},
 	})
 }

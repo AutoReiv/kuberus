@@ -1,17 +1,14 @@
 package server
 
 import (
-	"context"
-	"log"
 	"net/http"
 	"os"
-	"os/signal"
-	"time"
 
 	"rbac/pkg/handlers"
 	"rbac/pkg/handlers/rbac"
 	"rbac/pkg/middleware"
 
+	"github.com/labstack/echo/v4"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -19,6 +16,7 @@ import (
 type Config struct {
 	Port      string
 	IsDevMode bool
+	JWTSecret []byte
 }
 
 // NewConfig creates a new configuration with environment variables.
@@ -29,122 +27,96 @@ func NewConfig() *Config {
 	}
 
 	isDevMode := os.Getenv("DEV_MODE") == "true"
+	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
 
-	return &Config{Port: port, IsDevMode: isDevMode}
+	return &Config{Port: port, IsDevMode: isDevMode, JWTSecret: jwtSecret}
 }
 
-// NewServer creates a new HTTP server with the necessary routes and middleware.
-func NewServer(clientset *kubernetes.Clientset, config *Config) *http.Server {
-	// Create a new ServeMux
-	mux := http.NewServeMux()
-
-	// Register routes
-	registerRoutes(mux, clientset, config)
-
+// RegisterRoutes registers all the routes for the server.
+func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Config) {
 	// Apply middlewares
-	handler := middleware.ApplyMiddlewares(mux, config.IsDevMode)
+	middleware.ApplyMiddlewares(e, config.IsDevMode)
 
-	// Create the HTTP server
-	srv := &http.Server{
-		Addr:         ":" + config.Port,
-		Handler:      handler,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	handleGracefulShutdown(srv)
-	return srv
-}
-
-func StartServer(srv *http.Server, config *Config) error {
-	certFile := "certs/tls.crt"
-	keyFile := "certs/tls.key"
-
-	if _, err := os.Stat(certFile); err == nil {
-		if _, err := os.Stat(keyFile); err == nil {
-			return srv.ListenAndServeTLS(certFile, keyFile)
-		}
-	}
-
-	return srv.ListenAndServe()
-}
-
-// registerRoutes registers all the routes for the server.
-func registerRoutes(mux *http.ServeMux, clientset *kubernetes.Clientset, config *Config) {
 	// Admin account creation route
-	mux.Handle("/admin/create", http.HandlerFunc(handlers.CreateAdminHandler))
+	e.POST("/admin/create", handlers.CreateAdminHandler)
 
 	// Authentication routes
-	mux.Handle("/auth/login", http.HandlerFunc(handlers.LoginHandler))
+	e.POST("/auth/login", handlers.LoginHandler)
 	// OIDC routes
-	mux.Handle("/auth/oidc/login", http.HandlerFunc(handlers.OIDCAuthHandler))
-	mux.Handle("/auth/oidc/callback", http.HandlerFunc(handlers.OIDCCallbackHandler))
+	e.GET("/auth/oidc/login", handlers.OIDCAuthHandler)
+	e.GET("/auth/oidc/callback", handlers.OIDCCallbackHandler)
 
 	// Admin OIDC configuration route
-	mux.Handle("/admin/oidc/config", middleware.AuthMiddleware(http.HandlerFunc(handlers.SetOIDCConfigHandler), config.IsDevMode))
+	e.POST("/admin/oidc/config", middleware.JWTMiddleware()(handlers.SetOIDCConfigHandler))
 	// Admin Certificate Upload route
 	uploadCertsHandler := handlers.NewUploadCertsHandler(clientset)
-	mux.Handle("/admin/upload-certs", middleware.AuthMiddleware(uploadCertsHandler, config.IsDevMode))
+	e.POST("/admin/upload-certs", middleware.JWTMiddleware()(uploadCertsHandler.ServeHTTP))
 
 	// User management routes
-	mux.Handle("/admin/users", middleware.AuthMiddleware(http.HandlerFunc(handlers.UserManagementHandler(clientset)), config.IsDevMode))
+	e.POST("/admin/users", middleware.JWTMiddleware()(handlers.UserManagementHandler(clientset)))
 
 	// Protected API routes
-	apiMux := http.NewServeMux()
+	api := e.Group("/api", middleware.JWTMiddleware())
 	// Namespace routes
-	apiMux.Handle("/api/namespaces", http.HandlerFunc(rbac.NamespacesHandler(clientset)))
-	// Role routes
-	apiMux.Handle("/api/roles", http.HandlerFunc(rbac.RolesHandler(clientset)))
-	apiMux.Handle("/api/roles/details", http.HandlerFunc(rbac.RoleDetailsHandler(clientset)))
-	// Role bindings routes
-	apiMux.Handle("/api/rolebindings", middleware.AuthMiddleware(rbac.RoleBindingsHandler(clientset), config.IsDevMode))
-	apiMux.Handle("/api/rolebinding/details", middleware.AuthMiddleware(rbac.RoleBindingDetailsHandler(clientset), config.IsDevMode))
-	// Cluster role routes
-	apiMux.Handle("/api/clusterroles", http.HandlerFunc(rbac.ClusterRolesHandler(clientset)))
-	apiMux.Handle("/api/clusterroles/details", http.HandlerFunc(rbac.ClusterRoleDetailsHandler(clientset)))
-	// Cluster role bindings routes
-	apiMux.Handle("/api/clusterrolebindings", http.HandlerFunc(rbac.ClusterRoleBindingsHandler(clientset)))
-	apiMux.Handle("/api/clusterrolebinding/details", http.HandlerFunc(rbac.ClusterRoleBindingDetailsHandler(clientset)))
-	// Resource routes
-	apiMux.Handle("/api/resources", http.HandlerFunc(rbac.APIResourcesHandler(clientset)))
-	// Account routes
-	apiMux.Handle("/api/serviceaccounts", http.HandlerFunc(rbac.ServiceAccountsHandler(clientset)))
-	apiMux.Handle("/api/serviceaccount-details", http.HandlerFunc(rbac.ServiceAccountDetailsHandler(clientset)))
-	apiMux.Handle("/api/users", http.HandlerFunc(rbac.UsersHandler(clientset)))
-	apiMux.Handle("/api/user-details", http.HandlerFunc(rbac.UserDetailsHandler(clientset)))
-	apiMux.Handle("/api/groups", http.HandlerFunc(rbac.GroupsHandler(clientset)))
-	apiMux.Handle("/api/group-details", http.HandlerFunc(rbac.GroupDetailsHandler(clientset)))
-	// Audit logs route
-	apiMux.Handle("/api/audit-logs", http.HandlerFunc(handlers.GetAuditLogsHandler))
+	api.GET("/namespaces", rbac.NamespacesHandler(clientset))
+	api.POST("/namespaces", rbac.NamespacesHandler(clientset))
+	api.DELETE("/namespaces", rbac.NamespacesHandler(clientset))
 
-	mux.Handle("/api/", middleware.AuthMiddleware(apiMux, config.IsDevMode))
+	// Role routes
+	api.GET("/roles", rbac.RolesHandler(clientset))
+	api.POST("/roles", rbac.RolesHandler(clientset))
+	api.PUT("/roles", rbac.RolesHandler(clientset))
+	api.DELETE("/roles", rbac.RolesHandler(clientset))
+	api.GET("/roles/details", rbac.RoleDetailsHandler(clientset))
+
+	// Role bindings routes
+	api.GET("/rolebindings", rbac.RoleBindingsHandler(clientset))
+	api.POST("/rolebindings", rbac.RoleBindingsHandler(clientset))
+	api.PUT("/rolebindings", rbac.RoleBindingsHandler(clientset))
+	api.DELETE("/rolebindings", rbac.RoleBindingsHandler(clientset))
+	api.GET("/rolebinding/details", rbac.RoleBindingDetailsHandler(clientset))
+
+	// Cluster role routes
+	api.GET("/clusterroles", rbac.ClusterRolesHandler(clientset))
+	api.POST("/clusterroles", rbac.ClusterRolesHandler(clientset))
+	api.PUT("/clusterroles", rbac.ClusterRolesHandler(clientset))
+	api.DELETE("/clusterroles", rbac.ClusterRolesHandler(clientset))
+	api.GET("/clusterroles/details", rbac.ClusterRoleDetailsHandler(clientset))
+
+	// Cluster role bindings routes
+	api.GET("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
+	api.POST("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
+	api.PUT("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
+	api.DELETE("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
+	api.GET("/clusterrolebinding/details", rbac.ClusterRoleBindingDetailsHandler(clientset))
+
+	// Resource routes
+	api.GET("/resources", rbac.APIResourcesHandler(clientset))
+
+	// Account routes
+	api.GET("/serviceaccounts", rbac.ServiceAccountsHandler(clientset))
+	api.POST("/serviceaccounts", rbac.ServiceAccountsHandler(clientset))
+	api.DELETE("/serviceaccounts", rbac.ServiceAccountsHandler(clientset))
+	api.GET("/serviceaccount-details", rbac.ServiceAccountDetailsHandler(clientset))
+
+	// User routes
+	api.GET("/users", rbac.UsersHandler(clientset))
+	api.GET("/user-details", rbac.UserDetailsHandler(clientset))
+
+	// Group routes
+	api.GET("/groups", rbac.GroupsHandler(clientset))
+	api.GET("/group-details", rbac.GroupDetailsHandler(clientset))
+
+	// Audit logs route
+	api.GET("/audit-logs", handlers.GetAuditLogsHandler)
 
 	// Health check endpoint
-	mux.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
+	e.GET("/health", func(c echo.Context) error {
+		return c.String(http.StatusOK, "OK")
+	})
 
 	// Root URL handler
-	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"message": "Welcome to the RBAC Manager"}`))
-	}))
-}
-
-// handleGracefulShutdown handles the graceful shutdown of the server.
-func handleGracefulShutdown(srv *http.Server) {
-	go func() {
-		sigint := make(chan os.Signal, 1)
-		signal.Notify(sigint, os.Interrupt)
-		<-sigint
-
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		if err := srv.Shutdown(ctx); err != nil {
-			log.Printf("HTTP server Shutdown: %v", err)
-		}
-	}()
+	e.GET("/", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{"message": "Welcome to the RBAC Manager"})
+	})
 }

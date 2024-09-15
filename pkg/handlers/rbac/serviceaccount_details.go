@@ -3,8 +3,8 @@ package rbac
 import (
 	"context"
 	"net/http"
-	"rbac/pkg/utils"
 
+	"github.com/labstack/echo/v4"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -19,34 +19,30 @@ type ServiceAccountDetailsResponse struct {
 }
 
 // ServiceAccountDetailsHandler handles requests for detailed information about a specific service account.
-func ServiceAccountDetailsHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		serviceAccountName := r.URL.Query().Get("serviceAccountName")
+func ServiceAccountDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		serviceAccountName := c.QueryParam("serviceAccountName")
 		if serviceAccountName == "" {
-			http.Error(w, "Service account name is required", http.StatusBadRequest)
-			return
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Service account name is required"})
 		}
 
 		roleBindings, err := clientset.RbacV1().RoleBindings("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
 		clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
 		clusterRoles, err := clientset.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
 		serviceAccountDetails := extractServiceAccountDetails(serviceAccountName, roleBindings.Items, clusterRoleBindings.Items, clusterRoles.Items)
-		utils.WriteJSON(w, serviceAccountDetails)
+		return c.JSON(http.StatusOK, serviceAccountDetails)
 	}
 }
 

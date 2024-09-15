@@ -3,7 +3,8 @@ package handlers
 import (
 	"net/http"
 	"rbac/pkg/db"
-	"rbac/pkg/utils"
+
+	"github.com/labstack/echo/v4"
 )
 
 // AuditLog represents a single audit log entry.
@@ -16,11 +17,10 @@ type AuditLog struct {
 }
 
 // GetAuditLogsHandler handles requests to retrieve audit logs.
-func GetAuditLogsHandler(w http.ResponseWriter, r *http.Request) {
+func GetAuditLogsHandler(c echo.Context) error {
 	rows, err := db.DB.Query("SELECT id, action, resource_name, namespace, timestamp FROM audit_logs ORDER BY timestamp DESC")
 	if err != nil {
-		http.Error(w, "Error retrieving audit logs: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error retrieving audit logs: " + err.Error()})
 	}
 	defer rows.Close()
 
@@ -28,11 +28,10 @@ func GetAuditLogsHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var log AuditLog
 		if err := rows.Scan(&log.ID, &log.Action, &log.ResourceName, &log.Namespace, &log.Timestamp); err != nil {
-			http.Error(w, "Error scanning audit log: "+err.Error(), http.StatusInternalServerError)
-			return
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error scanning audit log: " + err.Error()})
 		}
 		logs = append(logs, log)
 	}
 
-	utils.WriteJSON(w, logs)
+	return c.JSON(http.StatusOK, logs)
 }
