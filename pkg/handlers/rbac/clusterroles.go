@@ -186,9 +186,3 @@ func filterClusterRoleBindings(clusterRoleBindings []rbacv1.ClusterRoleBinding, 
 	return associatedBindings
 }
 
-// ClusterRoleDetailsResponse represents the detailed information about a cluster role.
-type ClusterRoleDetailsResponse struct {
-	ClusterRole         *rbacv1.ClusterRole         `json:"clusterRole"`
-	ClusterRoleBindings []rbacv1.ClusterRoleBinding `json:"clusterRoleBindings"`
-}
-
