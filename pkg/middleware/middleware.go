@@ -15,10 +15,14 @@ import (
 func ApplyMiddlewares(e *echo.Echo, isDevMode bool) {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.Use(middleware.Secure())
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"*"},
-		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},
+
+	// Secure headers middleware
+	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
+		XSSProtection:         "1; mode=block",
+		ContentTypeNosniff:    "nosniff",
+		XFrameOptions:         "DENY",
+		HSTSMaxAge:            3600,
+		ContentSecurityPolicy: "default-src 'self'",
 	}))
 
 	// Apply rate limiting middleware
