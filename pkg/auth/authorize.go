@@ -144,3 +144,23 @@ func GetAllUsers() ([]User, error) {
 
 	return users, nil
 }
+
+// CreateUserIfNotExists creates a new user if they do not already exist.
+func CreateUserIfNotExists(username string) error {
+	var exists bool
+	err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username = ?)", username).Scan(&exists)
+	if err != nil {
+		utils.Logger.Error("Error checking user existence", zap.Error(err))
+		return err
+	}
+
+	if !exists {
+		_, err = db.DB.Exec("INSERT INTO users (username, password) VALUES (?, '')", username)
+		if err != nil {
+			utils.Logger.Error("Error creating user", zap.Error(err))
+			return err
+		}
+	}
+
+	return nil
+}

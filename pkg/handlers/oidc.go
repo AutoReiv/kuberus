@@ -112,7 +112,13 @@ func OIDCCallbackHandler(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication failed"})
 	}
 
-	// Here you can create a session for the user or generate a JWT token
+	// Store OIDC user in the database if not already present
+	if err := auth.CreateUserIfNotExists(claims.Email); err != nil {
+		utils.Logger.Error("Failed to store OIDC user", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to store user"})
+	}
+
+	// Generate JWT token
 	token, err := auth.GenerateJWT(claims.Email)
 	if err != nil {
 		utils.Logger.Error("Failed to generate JWT token", zap.Error(err))
@@ -123,7 +129,6 @@ func OIDCCallbackHandler(c echo.Context) error {
 	utils.LogAuditEvent(c.Request(), "oidc_callback_success", claims.Email, "N/A")
 	return c.JSON(http.StatusOK, map[string]string{"token": token})
 }
-
 // initOIDCProvider initializes the OIDC provider and verifier.
 func initOIDCProvider(config auth.OIDCConfig) {
 	var err error

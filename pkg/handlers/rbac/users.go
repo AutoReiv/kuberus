@@ -3,16 +3,33 @@ package rbac
 import (
 	"context"
 	"net/http"
+	"rbac/pkg/auth"
+	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
+// UserSource represents a user and their source.
+type UserSource struct {
+	Username string `json:"username"`
+	Source   string `json:"source"`
+}
+
 // UsersHandler handles requests related to listing users.
 func UsersHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		// Fetch users created by admin
+		adminUsers, err := auth.GetAllUsers()
+		if err != nil {
+			utils.Logger.Error("Error retrieving users from database", zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error retrieving users from database: " + err.Error()})
+		}
+
+		// Fetch users from RoleBindings and ClusterRoleBindings
 		roleBindings, err := clientset.RbacV1().RoleBindings("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -23,8 +40,25 @@ func UsersHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
-		users := extractUsersFromBindings(roleBindings.Items, clusterRoleBindings.Items)
-		return c.JSON(http.StatusOK, users)
+		k8sUsers := extractUsersFromBindings(roleBindings.Items, clusterRoleBindings.Items)
+
+		// Combine the lists, ensuring no duplicates, and indicate the source
+		userSet := make(map[string]string)
+		for _, user := range adminUsers {
+			userSet[user.Username] = "admin"
+		}
+		for _, user := range k8sUsers {
+			if _, exists := userSet[user]; !exists {
+				userSet[user] = "roleBinding"
+			}
+		}
+
+		combinedUsers := make([]UserSource, 0, len(userSet))
+		for user, source := range userSet {
+			combinedUsers = append(combinedUsers, UserSource{Username: user, Source: source})
+		}
+
+		return c.JSON(http.StatusOK, combinedUsers)
 	}
 }
 
