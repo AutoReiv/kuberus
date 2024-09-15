@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"rbac/pkg/auth"
 	"rbac/pkg/utils"
+
+	"github.com/labstack/echo/v4"
 )
 
 // LoginRequest represents the request payload for user login.
@@ -19,16 +20,10 @@ type LoginResponse struct {
 }
 
 // LoginHandler handles user login.
-func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func LoginHandler(c echo.Context) error {
 	var req LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload: "+err.Error(), http.StatusBadRequest)
-		return
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
 	}
 
 	// Sanitize user input
@@ -37,18 +32,16 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Authenticate user
 	if !auth.AuthenticateUser(username, password) {
-		utils.LogAuditEvent(r, "login_failed", username, "N/A")
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-		return
+		utils.LogAuditEvent(c.Request(), "login_failed", username, "N/A")
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid credentials"})
 	}
 
 	// Generate JWT token
 	token, err := auth.GenerateJWT(username)
 	if err != nil {
-		http.Error(w, "Failed to generate token: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate token: " + err.Error()})
 	}
 
-	utils.LogAuditEvent(r, "login_success", username, "N/A")
-	utils.WriteJSON(w, LoginResponse{Token: token})
+	utils.LogAuditEvent(c.Request(), "login_success", username, "N/A")
+	return c.JSON(http.StatusOK, LoginResponse{Token: token})
 }

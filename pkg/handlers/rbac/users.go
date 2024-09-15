@@ -3,30 +3,28 @@ package rbac
 import (
 	"context"
 	"net/http"
-	"rbac/pkg/utils"
 
+	"github.com/labstack/echo/v4"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // UsersHandler handles requests related to listing users.
-func UsersHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func UsersHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
+	return func(c echo.Context) error {
 		roleBindings, err := clientset.RbacV1().RoleBindings("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
 		clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
 		users := extractUsersFromBindings(roleBindings.Items, clusterRoleBindings.Items)
-		utils.WriteJSON(w, users)
+		return c.JSON(http.StatusOK, users)
 	}
 }
 

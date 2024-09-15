@@ -5,14 +5,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtKey []byte
+var JwtKey []byte
 
 // Initialize the JWT secret key
 func init() {
-	jwtKey = generateRandomKey(32) // 32 bytes for HS256
+	JwtKey = generateRandomKey(32) // 32 bytes for HS256
 }
 
 // generateRandomKey generates a secure random key of the specified length
@@ -28,7 +28,7 @@ func generateRandomKey(length int) []byte {
 // Claims defines the structure of the JWT claims
 type Claims struct {
 	Username string `json:"username"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 // GenerateJWT generates a new JWT token for a given username
@@ -36,13 +36,13 @@ func GenerateJWT(username string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
 		Username: username,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtKey)
+	tokenString, err := token.SignedString(JwtKey)
 	if err != nil {
 		return "", err
 	}
@@ -58,7 +58,7 @@ func ValidateJWT(tokenStr string) (*Claims, error) {
 	log.Printf("Validating JWT: %s", tokenStr)
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
+		return JwtKey, nil
 	})
 
 	if err != nil {

@@ -45,6 +45,14 @@ func createTables() {
         hash TEXT
     );`
 
+	createCertTable := `
+	CREATE TABLE IF NOT EXISTS certificates (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		cert BLOB NOT NULL,
+		key BLOB NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`
+
 	_, err := DB.Exec(createUserTable)
 	if err != nil {
 		log.Fatalf("Error creating users table: %v", err)
@@ -58,5 +66,10 @@ func createTables() {
 	_, err = DB.Exec(createAuditLogTable)
 	if err != nil {
 		log.Fatalf("Error creating audit_logs table: %v", err)
+	}
+
+	_, err = DB.Exec(createCertTable)
+	if err != nil {
+		log.Fatalf("Error creating certificates table: %v", err)
 	}
 }

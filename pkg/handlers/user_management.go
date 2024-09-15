@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"rbac/pkg/auth"
 	"rbac/pkg/utils"
 
+	"github.com/labstack/echo/v4"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -29,28 +29,27 @@ type DeleteUserRequest struct {
 }
 
 // UserManagementHandler handles user management-related requests.
-func UserManagementHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+func UserManagementHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		switch c.Request().Method {
 		case http.MethodPost:
-			handleCreateUser(w, r)
+			return handleCreateUser(c)
 		case http.MethodPut:
-			handleUpdateUser(w, r)
+			return handleUpdateUser(c)
 		case http.MethodDelete:
-			handleDeleteUser(w, r)
+			return handleDeleteUser(c)
 		case http.MethodGet:
-			handleListUsers(w)
+			return handleListUsers(c)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return c.JSON(http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 		}
 	}
 }
 
-func handleCreateUser(w http.ResponseWriter, r *http.Request) {
+func handleCreateUser(c echo.Context) error {
 	var req CreateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload: "+err.Error(), http.StatusBadRequest)
-		return
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
 	}
 
 	// Sanitize user input
@@ -59,25 +58,22 @@ func handleCreateUser(w http.ResponseWriter, r *http.Request) {
 
 	// Validate password strength
 	if !utils.IsStrongPassword(password) {
-		http.Error(w, "Password does not meet strength requirements", http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Password does not meet strength requirements"})
 	}
 
 	// Create user
 	if err := auth.CreateUser(username, password); err != nil {
-		http.Error(w, "Error creating user: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error creating user: " + err.Error()})
 	}
 
-	utils.LogAuditEvent(r, "create_user", username, "N/A")
-	utils.WriteJSON(w, map[string]string{"message": "User account created successfully"})
+	utils.LogAuditEvent(c.Request(), "create_user", username, "N/A")
+	return c.JSON(http.StatusOK, map[string]string{"message": "User account created successfully"})
 }
 
-func handleUpdateUser(w http.ResponseWriter, r *http.Request) {
+func handleUpdateUser(c echo.Context) error {
 	var req UpdateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload: "+err.Error(), http.StatusBadRequest)
-		return
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
 	}
 
 	// Sanitize user input
@@ -86,25 +82,22 @@ func handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	// Validate password strength
 	if !utils.IsStrongPassword(password) {
-		http.Error(w, "Password does not meet strength requirements", http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Password does not meet strength requirements"})
 	}
 
 	// Update user
 	if err := auth.UpdateUser(username, password); err != nil {
-		http.Error(w, "Error updating user: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error updating user: " + err.Error()})
 	}
 
-	utils.LogAuditEvent(r, "update_user", username, "N/A")
-	utils.WriteJSON(w, map[string]string{"message": "User account updated successfully"})
+	utils.LogAuditEvent(c.Request(), "update_user", username, "N/A")
+	return c.JSON(http.StatusOK, map[string]string{"message": "User account updated successfully"})
 }
 
-func handleDeleteUser(w http.ResponseWriter, r *http.Request) {
+func handleDeleteUser(c echo.Context) error {
 	var req DeleteUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload: "+err.Error(), http.StatusBadRequest)
-		return
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
 	}
 
 	// Sanitize user input
@@ -112,20 +105,18 @@ func handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	// Delete user
 	if err := auth.DeleteUser(username); err != nil {
-		http.Error(w, "Error deleting user: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error deleting user: " + err.Error()})
 	}
 
-	utils.LogAuditEvent(r, "delete_user", username, "N/A")
-	utils.WriteJSON(w, map[string]string{"message": "User account deleted successfully"})
+	utils.LogAuditEvent(c.Request(), "delete_user", username, "N/A")
+	return c.JSON(http.StatusOK, map[string]string{"message": "User account deleted successfully"})
 }
 
-func handleListUsers(w http.ResponseWriter) {
+func handleListUsers(c echo.Context) error {
 	users, err := auth.GetAllUsers()
 	if err != nil {
-		http.Error(w, "Error retrieving users: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error retrieving users: " + err.Error()})
 	}
 
-	utils.WriteJSON(w, users)
+	return c.JSON(http.StatusOK, users)
 }
