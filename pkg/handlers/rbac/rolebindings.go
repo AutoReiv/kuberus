@@ -28,7 +28,7 @@ func RoleBindingsHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 		case http.MethodPut:
 			handleUpdateRoleBinding(w, r, clientset, namespace)
 		case http.MethodDelete:
-			handleDeleteRoleBinding(w, clientset, namespace, r.URL.Query().Get("name"))
+			handleDeleteRoleBinding(w, r, clientset, namespace, r.URL.Query().Get("name"))
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -64,7 +64,7 @@ func handleCreateRoleBinding(w http.ResponseWriter, r *http.Request, clientset *
 		return
 	}
 
-	utils.LogAuditEvent("create", roleBinding.Name, namespace)
+	utils.LogAuditEvent(r, "create", roleBinding.Name, namespace)
 	utils.WriteJSON(w, createdRoleBinding)
 }
 
@@ -87,12 +87,12 @@ func handleUpdateRoleBinding(w http.ResponseWriter, r *http.Request, clientset *
 		return
 	}
 
-	utils.LogAuditEvent("update", roleBinding.Name, namespace)
+	utils.LogAuditEvent(r, "update", roleBinding.Name, namespace)
 	utils.WriteJSON(w, updatedRoleBinding)
 }
 
 // handleDeleteRoleBinding deletes a role binding in a specific namespace.
-func handleDeleteRoleBinding(w http.ResponseWriter, clientset *kubernetes.Clientset, namespace, name string) {
+func handleDeleteRoleBinding(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset, namespace, name string) {
 	if name == "" {
 		http.Error(w, "Role binding name is required", http.StatusBadRequest)
 		return
@@ -104,7 +104,7 @@ func handleDeleteRoleBinding(w http.ResponseWriter, clientset *kubernetes.Client
 		return
 	}
 
-	utils.LogAuditEvent("delete", name, namespace)
+	utils.LogAuditEvent(r, "delete", name, namespace)
 	w.WriteHeader(http.StatusNoContent)
 }
 

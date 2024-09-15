@@ -22,7 +22,7 @@ func ClusterRolesHandler(clientset *kubernetes.Clientset) http.HandlerFunc {
 		case http.MethodPut:
 			handleUpdateClusterRole(w, r, clientset)
 		case http.MethodDelete:
-			handleDeleteClusterRole(w, clientset, r.URL.Query().Get("name"))
+			handleDeleteClusterRole(w, r, clientset, r.URL.Query().Get("name"))
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -85,7 +85,7 @@ func handleCreateClusterRole(w http.ResponseWriter, r *http.Request, clientset *
 		return
 	}
 
-	utils.LogAuditEvent("create", clusterRole.Name, "cluster-wide")
+	utils.LogAuditEvent(r, "create", clusterRole.Name, "cluster-wide")
 	utils.WriteJSON(w, createdClusterRole)
 }
 
@@ -103,12 +103,12 @@ func handleUpdateClusterRole(w http.ResponseWriter, r *http.Request, clientset *
 		return
 	}
 
-	utils.LogAuditEvent("update", clusterRole.Name, "cluster-wide")
+	utils.LogAuditEvent(r, "update", clusterRole.Name, "cluster-wide")
 	utils.WriteJSON(w, updatedClusterRole)
 }
 
 // handleDeleteClusterRole deletes a cluster role by name.
-func handleDeleteClusterRole(w http.ResponseWriter, clientset *kubernetes.Clientset, name string) {
+func handleDeleteClusterRole(w http.ResponseWriter, r *http.Request, clientset *kubernetes.Clientset, name string) {
 	if name == "" {
 		http.Error(w, "Cluster role name is required", http.StatusBadRequest)
 		return
@@ -120,7 +120,7 @@ func handleDeleteClusterRole(w http.ResponseWriter, clientset *kubernetes.Client
 		return
 	}
 
-	utils.LogAuditEvent("delete", name, "cluster-wide")
+	utils.LogAuditEvent(r, "delete", name, "cluster-wide")
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -185,3 +185,10 @@ func filterClusterRoleBindings(clusterRoleBindings []rbacv1.ClusterRoleBinding, 
 	}
 	return associatedBindings
 }
+
+// ClusterRoleDetailsResponse represents the detailed information about a cluster role.
+type ClusterRoleDetailsResponse struct {
+	ClusterRole         *rbacv1.ClusterRole         `json:"clusterRole"`
+	ClusterRoleBindings []rbacv1.ClusterRoleBinding `json:"clusterRoleBindings"`
+}
+

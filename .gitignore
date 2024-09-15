@@ -1,5 +1,7 @@
 # Ignore certificate and key files
 db.db
+.env
+
 
 # Other common ignores
 *.log

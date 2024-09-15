@@ -46,6 +46,7 @@ func SetOIDCConfigHandler(w http.ResponseWriter, r *http.Request) {
 	// Initialize OIDC provider and verifier
 	initOIDCProvider(config)
 
+	utils.LogAuditEvent(r, "set_oidc_config", "OIDC", "N/A")
 	utils.WriteJSON(w, map[string]string{"message": "OIDC configuration set successfully"})
 }
 
@@ -87,18 +88,21 @@ func OIDCCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	oauth2Token, err := oauth2Config.Exchange(context.Background(), code)
 	if err != nil {
 		log.Printf("Failed to exchange token: %v", err) // Log the error for debugging
+		utils.LogAuditEvent(r, "oidc_callback_failed", "N/A", "N/A")
 		http.Error(w, "Authentication failed", http.StatusUnauthorized)
 		return
 	}
 
 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 	if !ok {
+		utils.LogAuditEvent(r, "oidc_callback_failed", "N/A", "N/A")
 		http.Error(w, "Authentication failed", http.StatusUnauthorized)
 		return
 	}
 
 	idToken, err := verifier.Verify(context.Background(), rawIDToken)
 	if err != nil {
+		utils.LogAuditEvent(r, "oidc_callback_failed", "N/A", "N/A")
 		http.Error(w, "Authentication failed", http.StatusUnauthorized)
 		return
 	}
@@ -107,6 +111,7 @@ func OIDCCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		Email string `json:"email"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
+		utils.LogAuditEvent(r, "oidc_callback_failed", "N/A", "N/A")
 		http.Error(w, "Authentication failed", http.StatusUnauthorized)
 		return
 	}
@@ -118,6 +123,7 @@ func OIDCCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	utils.LogAuditEvent(r, "oidc_callback_success", claims.Email, "N/A")
 	utils.WriteJSON(w, map[string]string{"token": token})
 }
 

@@ -37,6 +37,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Authenticate user
 	if !auth.AuthenticateUser(username, password) {
+		utils.LogAuditEvent(r, "login_failed", username, "N/A")
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
@@ -48,5 +49,6 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	utils.LogAuditEvent(r, "login_success", username, "N/A")
 	utils.WriteJSON(w, LoginResponse{Token: token})
 }
