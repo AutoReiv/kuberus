@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"rbac/pkg/auth"
 	"rbac/pkg/utils"
 
 	"github.com/coreos/go-oidc"
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 )
 
@@ -32,16 +32,19 @@ func SetOIDCConfigHandler(c echo.Context) error {
 
 	var config auth.OIDCConfig
 	if err := c.Bind(&config); err != nil {
+		utils.Logger.Error("Invalid request payload", zap.Error(err))
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
 	}
 
 	if err := auth.SetOIDCConfig(&config); err != nil {
+		utils.Logger.Error("Failed to set OIDC configuration", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to set OIDC configuration: " + err.Error()})
 	}
 
 	// Initialize OIDC provider and verifier
 	initOIDCProvider(config)
 
+	utils.Logger.Info("OIDC configuration set successfully", zap.String("username", username))
 	utils.LogAuditEvent(c.Request(), "set_oidc_config", "OIDC", "N/A")
 	return c.JSON(http.StatusOK, map[string]string{"message": "OIDC configuration set successfully"})
 }
@@ -55,11 +58,13 @@ func OIDCAuthHandler(c echo.Context) error {
 	// Check if the OIDC configuration is set
 	_, err := auth.GetOIDCConfig()
 	if err != nil {
+		utils.Logger.Error("OIDC configuration not set", zap.Error(err))
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "OIDC configuration not set"})
 	}
 
 	state := "random" // You should generate a random state string for security
 	authURL := oauth2Config.AuthCodeURL(state)
+	utils.Logger.Info("Redirecting to OIDC provider for authentication", zap.String("authURL", authURL))
 	return c.Redirect(http.StatusFound, authURL)
 }
 
@@ -71,27 +76,29 @@ func OIDCCallbackHandler(c echo.Context) error {
 
 	code := c.QueryParam("code")
 	if code == "" {
+		utils.Logger.Error("Invalid request: missing code parameter")
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
 	}
 
-	// Log the authorization code for debugging
-	log.Printf("Authorization code: %s", code)
+	utils.Logger.Info("Received authorization code", zap.String("code", code))
 
 	oauth2Token, err := oauth2Config.Exchange(context.Background(), code)
 	if err != nil {
-		log.Printf("Failed to exchange token: %v", err) // Log the error for debugging
+		utils.Logger.Error("Failed to exchange token", zap.Error(err))
 		utils.LogAuditEvent(c.Request(), "oidc_callback_failed", "N/A", "N/A")
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication failed"})
 	}
 
 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 	if !ok {
+		utils.Logger.Error("Failed to retrieve ID token from OAuth2 token")
 		utils.LogAuditEvent(c.Request(), "oidc_callback_failed", "N/A", "N/A")
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication failed"})
 	}
 
 	idToken, err := verifier.Verify(context.Background(), rawIDToken)
 	if err != nil {
+		utils.Logger.Error("Failed to verify ID token", zap.Error(err))
 		utils.LogAuditEvent(c.Request(), "oidc_callback_failed", "N/A", "N/A")
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication failed"})
 	}
@@ -100,6 +107,7 @@ func OIDCCallbackHandler(c echo.Context) error {
 		Email string `json:"email"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
+		utils.Logger.Error("Failed to parse ID token claims", zap.Error(err))
 		utils.LogAuditEvent(c.Request(), "oidc_callback_failed", "N/A", "N/A")
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication failed"})
 	}
@@ -107,9 +115,11 @@ func OIDCCallbackHandler(c echo.Context) error {
 	// Here you can create a session for the user or generate a JWT token
 	token, err := auth.GenerateJWT(claims.Email)
 	if err != nil {
+		utils.Logger.Error("Failed to generate JWT token", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate token"})
 	}
 
+	utils.Logger.Info("OIDC callback successful", zap.String("email", claims.Email))
 	utils.LogAuditEvent(c.Request(), "oidc_callback_success", claims.Email, "N/A")
 	return c.JSON(http.StatusOK, map[string]string{"token": token})
 }
@@ -119,7 +129,7 @@ func initOIDCProvider(config auth.OIDCConfig) {
 	var err error
 	oidcProvider, err = oidc.NewProvider(context.Background(), config.IssuerURL)
 	if err != nil {
-		log.Fatalf("Error creating OIDC provider: %v", err)
+		utils.Logger.Fatal("Error creating OIDC provider", zap.Error(err))
 	}
 
 	oauth2Config = &oauth2.Config{
@@ -131,4 +141,5 @@ func initOIDCProvider(config auth.OIDCConfig) {
 	}
 
 	verifier = oidcProvider.Verifier(&oidc.Config{ClientID: config.ClientID})
+	utils.Logger.Info("OIDC provider initialized", zap.String("issuerURL", config.IssuerURL))
 }
