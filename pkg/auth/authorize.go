@@ -87,15 +87,21 @@ func UpdateUser(username, password string) error {
 
 // DeleteUser deletes a user.
 func DeleteUser(username string) error {
-	_, err := db.DB.Exec("DELETE FROM users WHERE username = ?", username)
+	result, err := db.DB.Exec("DELETE FROM users WHERE username = ?", username)
 	if err != nil {
 		utils.Logger.Error("Error deleting user", zap.Error(err))
 		return err
 	}
 
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		utils.Logger.Error("Error fetching rows affected", zap.Error(err))
+		return err
+	}
+
+	utils.Logger.Info("User deletion result", zap.String("username", username), zap.Int64("rowsAffected", rowsAffected))
 	return nil
 }
-
 // SetOIDCConfig sets the OIDC configuration.
 func SetOIDCConfig(config *OIDCConfig) error {
 	_, err := db.DB.Exec("INSERT INTO oidc_config (client_id, client_secret, issuer_url, callback_url) VALUES (?, ?, ?, ?)",
