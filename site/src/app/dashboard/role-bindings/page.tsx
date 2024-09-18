@@ -27,6 +27,8 @@ import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ColumnDef } from "@tanstack/react-table";
 import { SkeletonPage } from "@/components/SkeletonPage";
+import { pageVariants } from "../layout";
+import { motion } from "framer-motion";
 
 interface RoleBinding {
   metadata: {
@@ -216,7 +218,13 @@ const RoleBindings = () => {
   ];
 
   return (
-    <div className="flex w-full flex-col">
+    <motion.div
+      className="flex w-full flex-col"
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={pageVariants}
+    >
       {isLoading ? (
         <SkeletonPage></SkeletonPage>
       ) : (
@@ -228,7 +236,7 @@ const RoleBindings = () => {
           // Add in row action to route to details
         ></GenericDataTable>
       )}
-    </div>
+    </motion.div>
   );
 };
 

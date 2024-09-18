@@ -23,6 +23,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { SkeletonPage } from "@/components/SkeletonPage";
+import { pageVariants } from "../layout";
+import { motion } from "framer-motion";
 
 interface ServiceAccount {
   metadata: {
@@ -119,7 +121,13 @@ const ServiceAccounts = () => {
   }
 
   return (
-    <div className="flex w-full flex-col">
+    <motion.div
+      className="flex w-full flex-col"
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={pageVariants}
+    >
       {isLoading ? (
         <SkeletonPage></SkeletonPage>
       ) : (
@@ -130,7 +138,7 @@ const ServiceAccounts = () => {
           description="Manage and configure service accounts in your Kubernetes cluster"
         />
       )}
-    </div>
+    </motion.div>
   );
 };
 

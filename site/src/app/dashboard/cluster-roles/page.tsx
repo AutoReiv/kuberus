@@ -8,6 +8,8 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown } from "lucide-react";
 import { SkeletonPage } from "@/components/SkeletonPage";
+import { pageVariants } from "../layout";
+import { motion } from "framer-motion";
 
 interface ClusterRole {
   metadata: {
@@ -65,7 +67,13 @@ const ClusterRoles = () => {
   ];
 
   return (
-    <div className="flex w-full flex-col">
+    <motion.div
+      className="flex w-full flex-col"
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={pageVariants}
+    >
       {isLoading ? (
         <SkeletonPage></SkeletonPage>
       ) : (
@@ -75,9 +83,8 @@ const ClusterRoles = () => {
           title="Cluster Roles"
           description="Cluster roles are used to grant permissions to users, groups, or service accounts across the entire cluster. They define the actions that can be performed on resources within the cluster. Cluster roles are typically used for global permissions that apply to all namespaces."
         ></GenericDataTable>
-        // <DataTable clusterRoles={clusterRoles}></DataTable>
       )}
-    </div>
+    </motion.div>
   );
 };
 
