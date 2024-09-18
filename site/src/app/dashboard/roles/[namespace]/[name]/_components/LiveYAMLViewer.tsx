@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Copy, Edit, Save } from "lucide-react";
 import { toast } from "sonner";
 import MonacoEditor from "@monaco-editor/react";
+import { useTheme } from "next-themes";
 
 interface LiveYAMLViewerProps {
   rules;
@@ -18,6 +19,7 @@ const LiveYAMLViewer: React.FC<LiveYAMLViewerProps> = ({ rules, metadata, onUpda
   const [yamlContent, setYamlContent] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [editedYaml, setEditedYaml] = useState("");
+  const { theme } = useTheme();
 
   useEffect(() => {
     const updateYAML = () => {
@@ -98,7 +100,7 @@ const LiveYAMLViewer: React.FC<LiveYAMLViewerProps> = ({ rules, metadata, onUpda
       <MonacoEditor
         height="400px"
         language="yaml"
-        theme="vs-dark"
+        theme={theme === 'dark' ? "vs-dark" : "light"}
         value={isEditing ? editedYaml : yamlContent}
         options={{ readOnly: !isEditing }}
         onChange={(value) => isEditing && setEditedYaml(value || "")}
