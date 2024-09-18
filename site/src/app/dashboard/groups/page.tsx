@@ -6,6 +6,8 @@ import React from "react";
 import GenericDataTable from "@/components/GenericDataTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { SkeletonPage } from "@/components/SkeletonPage";
+import { pageVariants } from "../layout";
+import { motion } from "framer-motion";
 
 type Group = string;
 
@@ -34,7 +36,13 @@ const Groups = () => {
   ];
 
   return (
-    <div className="flex w-full flex-col">
+    <motion.div
+      className="flex w-full flex-col"
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={pageVariants}
+    >
       {isLoading ? (
         <SkeletonPage></SkeletonPage>
       ) : (
@@ -46,7 +54,7 @@ const Groups = () => {
           // Add in row action to route to details
         ></GenericDataTable>
       )}
-    </div>
+    </motion.div>
   );
 };
 

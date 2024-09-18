@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { SkeletonPage } from "@/components/SkeletonPage";
+import { pageVariants } from "../layout";
+import { motion } from "framer-motion";
 
 interface ClusterRoleBinding {
   metadata: {
@@ -79,7 +81,13 @@ const ClusterRoleBindings = () => {
   ];
 
   return (
-    <div className="flex w-full flex-col">
+    <motion.div
+      className="flex w-full flex-col"
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={pageVariants}
+    >
       {isPendingRoles ? (
         <SkeletonPage></SkeletonPage>
       ) : (
@@ -90,7 +98,7 @@ const ClusterRoleBindings = () => {
           description="Manage and view Cluster Role Bindings, which define the association between a set of permissions and a user or set of users across the entire cluster. These bindings are crucial for controlling access and maintaining security in your Kubernetes environment."
         ></GenericDataTable>
       )}
-    </div>
+    </motion.div>
   );
 };
 

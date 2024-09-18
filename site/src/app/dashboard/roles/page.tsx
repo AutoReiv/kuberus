@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { SkeletonPage } from "@/components/SkeletonPage";
+import { motion } from "framer-motion";
+import { pageVariants } from "../layout";
 
 /**
  * Renders a component that displays a list of roles and namespaces.
@@ -27,6 +29,7 @@ import { SkeletonPage } from "@/components/SkeletonPage";
  * The component uses the `useQuery` hook from `@tanstack/react-query` to fetch the list of roles and namespaces from the API.
  * If the data is still being fetched, a skeleton loader is displayed. Otherwise, a `DataTable` component is rendered with the fetched roles and namespaces.
  */
+
 const Roles = () => {
   // Get Roles
   const {
@@ -187,7 +190,13 @@ const Roles = () => {
   ];
 
   return (
-    <div className="flex w-full flex-col">
+    <motion.div
+      className="flex w-full flex-col"
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={pageVariants}
+    >
       {isLoading ? (
         <SkeletonPage></SkeletonPage>
       ) : (
@@ -199,7 +208,7 @@ const Roles = () => {
           // Add in row action to route to details
         ></GenericDataTable>
       )}
-    </div>
+    </motion.div>
   );
 };
 
