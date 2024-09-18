@@ -129,7 +129,25 @@ class ApiClient {
 
   // Audit-related methods
   async getAuditLogs() {
-    return this.fetch(ENDPOINTS.AUDIT.LOGS);
+    return this.fetch(ENDPOINTS.AUDIT.LOGS, {
+      method: "GET",
+    });
+  }
+
+  async getServiceAccounts() {
+    return this.fetch(ENDPOINTS.USER_MANAGEMENT.SERVICEACCOUNTS.BASE);
+  }
+
+  async getServiceAccountDetails(namespace: string, name: string) {
+    return this.fetch(ENDPOINTS.USER_MANAGEMENT.SERVICEACCOUNTS.DETAILS(namespace, name));
+  }
+
+  async getGroups() {
+    return this.fetch(ENDPOINTS.USER_MANAGEMENT.GROUPS.BASE);
+  }
+
+  async getGroupDetails(name: string) {
+    return this.fetch(ENDPOINTS.USER_MANAGEMENT.GROUPS.DETAILS(name));
   }
 }
 

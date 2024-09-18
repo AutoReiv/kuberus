@@ -1,36 +1,13 @@
 "use client";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
-import {
-  Activity,
-  ArrowUpRight,
-  CreditCard,
-  DollarSign,
-  Package2,
-  Users,
-} from "lucide-react";
+import { ArrowUpDown, Package2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import UserManagement from "./_components/UserManagement";
 import { apiClient } from "@/lib/apiClient";
-import { DataTable } from "./_components/DataTable";
-import { CreateUserDialog } from "./_components/CreateUserDialog";
+import GenericDataTable from "@/components/GenericDataTable";
+import { ColumnDef } from "@tanstack/react-table";
 
 interface AuditLog {
   id: number;
@@ -38,6 +15,11 @@ interface AuditLog {
   resource_name: string;
   namespace: string;
   timestamp: string;
+  hash: string;
+}
+
+export interface User {
+  username: string;
 }
 
 const getActionVariant = (
@@ -76,21 +58,28 @@ const Admin = () => {
     queryFn: () => apiClient.getAuditLogs(),
   });
 
-  console.log("auditLogs", auditLogs); 
   const { data: users, isFetched: usersFetched } = useQuery({
     queryKey: ["users"],
     queryFn: () => apiClient.getAdminUsers(),
   });
 
-  console.log("users", users);
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (error) {
-    return <div>Error: {error.message}</div>;
-  }
+  const columns: ColumnDef<User>[] = [
+    {
+      accessorKey: "username",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Name
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => <div>{row.original.username}</div>,
+    },
+  ];
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -137,49 +126,42 @@ const Admin = () => {
       </header>
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
-          {usersFetched ? <DataTable users={users} /> : <div>Loading...</div>}
+          {isLoading ? (
+            <p>Loading Table...</p>
+          ) : error ? (
+            <p>Error loading users</p>
+          ) : (
+            <GenericDataTable
+              className="col-span-2"
+              data={users}
+              columns={columns}
+              title="Users"
+              description="Manage and view all registered users in the system"
+            ></GenericDataTable>
+          )}
           <Card>
             <CardHeader>
               <CardTitle>Audit Log</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-8">
-              <ul className="audit-logs-list space-y-4">
-                {auditLogs
-                  ? auditLogs.map((log) => (
-                      <li
-                        key={log.id}
-                        className="audit-log-item p-4 border rounded-lg shadow-sm"
-                      >
-                        <div className="flex items-center justify-between text-sm py-2 border-b last:border-b-0">
-                          <div className="flex items-center space-x-3">
-                            <Badge
-                              variant={getActionVariant(log.action)}
-                              className="w-16 justify-center"
-                            >
-                              {log.action}
-                            </Badge>
-                            <span
-                              className="font-medium truncate max-w-[150px]"
-                              title={log.resource_name}
-                            >
-                              {log.resource_name}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2 text-muted-foreground">
-                            <span className="text-xs bg-secondary px-2 py-1 rounded">
-                              {log.namespace}
-                            </span>
-                            <span
-                              title={new Date(log.timestamp).toLocaleString()}
-                            >
-                              {formatRelativeTime(log.timestamp)}
-                            </span>
-                          </div>
-                        </div>
-                      </li>
-                    ))
-                  : "No Logs"}
-              </ul>
+            <CardContent className="grid gap-1">
+              {isLoading ? (
+                <p>Loading audit logs...</p>
+              ) : error ? (
+                <p>Error loading audit logs</p>
+              ) : (
+                auditLogs?.slice(0, 10).map((log: AuditLog) => (
+                  <div
+                    key={log.id}
+                    className="flex justify-between items-center text-sm hover:bg-muted rounded-md p-1"
+                  >
+                    <span>{log.action}</span>
+                    <span>{log.resource_name}</span>
+                    <Badge variant={getActionVariant(log.action)}>
+                      {formatRelativeTime(log.timestamp)}
+                    </Badge>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>

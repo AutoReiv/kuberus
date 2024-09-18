@@ -1,5 +1,5 @@
 // Constants for common URL segments
-const ALL_NAMESPACES = 'all';
+const ALL_NAMESPACES = "all";
 
 /**
  * API Endpoints for the application
@@ -7,8 +7,8 @@ const ALL_NAMESPACES = 'all';
 export const ENDPOINTS = {
   // Kubernetes resource endpoints
   K8S_RESOURCES: {
-    RESOURCES: '/api/resources',
-    NAMESPACES: '/api/namespaces',
+    RESOURCES: "/api/resources",
+    NAMESPACES: "/api/namespaces",
   },
 
   // RBAC-related endpoints
@@ -21,39 +21,46 @@ export const ENDPOINTS = {
         `/api/roles?namespace=${namespace}&name=${name}`,
     },
     ROLEBINDINGS: {
-      BASE: '/api/rolebindings',
+      BASE: "/api/rolebindings",
       DETAILS: (namespace: string, name: string) =>
         `/api/rolebinding/details?name=${name}&namespace=${namespace}`,
     },
     CLUSTERROLES: {
-      BASE: '/api/clusterroles',
-      DETAILS: (name: string) => `/api/clusterroles/details?clusterRoleName=${name}`,
+      BASE: "/api/clusterroles",
+      DETAILS: (name: string) =>
+        `/api/clusterroles/details?clusterRoleName=${name}`,
     },
     CLUSTERROLEBINDINGS: {
-      BASE: '/api/clusterrolebindings',
-      DETAILS: (name: string) => `/api/clusterrolebindings/details?name=${name}`,
+      BASE: "/api/clusterrolebindings",
+      DETAILS: (name: string) =>
+        `/api/clusterrolebindings/details?name=${name}`,
     },
   },
 
   // User and group management endpoints
   USER_MANAGEMENT: {
     USERS: {
-      BASE: '/api/users',
-      DETAILS: '/api/user-details',
+      BASE: "/api/users",
+      DETAILS: "/api/user-details",
+    },
+    SERVICEACCOUNTS: {
+      BASE: "/api/serviceaccounts",
+      DETAILS: (namespace: string, name: string) =>
+        "/api/serviceaccount-details",
     },
     GROUPS: {
-      BASE: '/api/groups',
-      DETAILS: '/api/group-details',
+      BASE: "/api/groups",
+      DETAILS: (name: string) => "/api/group-details",
     },
   },
 
   ADMIN: {
-    CREATION: () => '/admin/create',
-    USERS: (username?: string) => '/admin/users',
+    CREATION: () => "/admin/create",
+    USERS: (username?: string) => `/admin/users`,
   },
 
   // Audit and logging endpoints
   AUDIT: {
-    LOGS: '/api/audit-logs',
+    LOGS: "/api/audit-logs",
   },
 };
