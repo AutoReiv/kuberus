@@ -113,11 +113,10 @@ func OIDCCallbackHandler(c echo.Context) error {
 	}
 
 	// Store OIDC user in the database if not already present
-	if err := auth.CreateUserIfNotExists(claims.Email); err != nil {
+	if err := auth.CreateUserIfNotExists(claims.Email, "oidc"); err != nil {
 		utils.Logger.Error("Failed to store OIDC user", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to store user"})
 	}
-
 	// Generate JWT token
 	token, err := auth.GenerateJWT(claims.Email)
 	if err != nil {

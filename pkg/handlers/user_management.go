@@ -14,14 +14,14 @@ import (
 type CreateUserRequest struct {
 	Username        string `json:"username" binding:"required"`
 	Password        string `json:"password" binding:"required"`
-	PasswordConfirm string `json:"passwordConfirm" binding:"required,eqfield=Password"`
+	PasswordConfirm string `json:"passwordConfirm" binding:"required"`
 }
 
 // UpdateUserRequest represents the request payload for updating a user's password.
 type UpdateUserRequest struct {
 	Username        string `json:"username" binding:"required"`
 	Password        string `json:"password" binding:"required"`
-	PasswordConfirm string `json:"passwordConfirm" binding:"required,eqfield=Password"`
+	PasswordConfirm string `json:"passwordConfirm" binding:"required"`
 }
 
 // DeleteUserRequest represents the request payload for deleting a user.
@@ -54,6 +54,12 @@ func handleCreateUser(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
 	}
 
+	// Ensure Password and PasswordConfirm match
+	if req.Password != req.PasswordConfirm {
+		utils.Logger.Warn("Passwords do not match")
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Passwords do not match"})
+	}
+
 	// Sanitize user input
 	username := utils.SanitizeInput(req.Username)
 	password := utils.SanitizeInput(req.Password)
@@ -65,7 +71,7 @@ func handleCreateUser(c echo.Context) error {
 	}
 
 	// Create user
-	if err := auth.CreateUser(username, password); err != nil {
+	if err := auth.CreateUser(username, password, "admin"); err != nil {
 		utils.Logger.Error("Error creating user", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error creating user: " + err.Error()})
 	}
@@ -80,6 +86,12 @@ func handleUpdateUser(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		utils.Logger.Error("Invalid request payload", zap.Error(err))
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
+	}
+
+	// Ensure Password and PasswordConfirm match
+	if req.Password != req.PasswordConfirm {
+		utils.Logger.Warn("Passwords do not match")
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Passwords do not match"})
 	}
 
 	// Sanitize user input

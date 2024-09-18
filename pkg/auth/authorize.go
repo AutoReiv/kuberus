@@ -52,17 +52,37 @@ func IsAdmin(username string) bool {
 }
 
 // CreateUser creates a new user.
-func CreateUser(username, password string) error {
+func CreateUser(username, password, source string) error {
 	hashedPassword, err := HashPassword(password)
 	if err != nil {
 		utils.Logger.Error("Error hashing password", zap.Error(err))
 		return err
 	}
 
-	_, err = db.DB.Exec("INSERT INTO users (username, password) VALUES (?, ?)", username, hashedPassword)
+	_, err = db.DB.Exec("INSERT INTO users (username, password, source) VALUES (?, ?, ?)", username, hashedPassword, source)
 	if err != nil {
 		utils.Logger.Error("Error creating user", zap.Error(err))
 		return err
+	}
+
+	return nil
+}
+
+// CreateUserIfNotExists creates a new user if they do not already exist.
+func CreateUserIfNotExists(username, source string) error {
+	var exists bool
+	err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username = ?)", username).Scan(&exists)
+	if err != nil {
+		utils.Logger.Error("Error checking user existence", zap.Error(err))
+		return err
+	}
+
+	if !exists {
+		_, err = db.DB.Exec("INSERT INTO users (username, password, source) VALUES (?, '', ?)", username, source)
+		if err != nil {
+			utils.Logger.Error("Error creating user", zap.Error(err))
+			return err
+		}
 	}
 
 	return nil
@@ -84,7 +104,6 @@ func UpdateUser(username, password string) error {
 
 	return nil
 }
-
 // DeleteUser deletes a user.
 func DeleteUser(username string) error {
 	result, err := db.DB.Exec("DELETE FROM users WHERE username = ?", username)
@@ -127,11 +146,12 @@ func GetOIDCConfig() (*OIDCConfig, error) {
 // User represents a user account.
 type User struct {
 	Username string `json:"username"`
+	Source   string `json:"source"`
 }
 
 // GetAllUsers retrieves all user accounts.
 func GetAllUsers() ([]User, error) {
-	rows, err := db.DB.Query("SELECT username FROM users")
+	rows, err := db.DB.Query("SELECT username, source FROM users")
 	if err != nil {
 		utils.Logger.Error("Error retrieving users", zap.Error(err))
 		return nil, err
@@ -141,7 +161,7 @@ func GetAllUsers() ([]User, error) {
 	var users []User
 	for rows.Next() {
 		var user User
-		if err := rows.Scan(&user.Username); err != nil {
+		if err := rows.Scan(&user.Username, &user.Source); err != nil {
 			utils.Logger.Error("Error scanning user", zap.Error(err))
 			return nil, err
 		}
@@ -149,24 +169,4 @@ func GetAllUsers() ([]User, error) {
 	}
 
 	return users, nil
-}
-
-// CreateUserIfNotExists creates a new user if they do not already exist.
-func CreateUserIfNotExists(username string) error {
-	var exists bool
-	err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username = ?)", username).Scan(&exists)
-	if err != nil {
-		utils.Logger.Error("Error checking user existence", zap.Error(err))
-		return err
-	}
-
-	if !exists {
-		_, err = db.DB.Exec("INSERT INTO users (username, password) VALUES (?, '')", username)
-		if err != nil {
-			utils.Logger.Error("Error creating user", zap.Error(err))
-			return err
-		}
-	}
-
-	return nil
 }
