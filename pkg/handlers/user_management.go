@@ -71,7 +71,7 @@ func handleCreateUser(c echo.Context) error {
 	}
 
 	// Create user
-	if err := auth.CreateUser(username, password, "admin"); err != nil {
+	if err := auth.CreateUser(username, password, "internal"); err != nil {
 		utils.Logger.Error("Error creating user", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error creating user: " + err.Error()})
 	}

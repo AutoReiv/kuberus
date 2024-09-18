@@ -66,7 +66,15 @@ func CreateAdminHandler(c echo.Context) error {
 	}
 
 	// Store the admin account information
-	_, err = db.DB.Exec("INSERT INTO users (username, password, source) VALUES (?, ?, 'admin')", username, hashedPassword)
+	_, err = db.DB.Exec("INSERT INTO users (username, password, source) VALUES (?, ?, 'internal')", username, hashedPassword)
+	if err != nil {
+		utils.Logger.Error("Error creating admin account", zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "Error creating admin account: "+err.Error())
+	}
+
+	utils.Logger.Info("Admin account created successfully", zap.String("username", username))
+	utils.LogAuditEvent(c.Request(), "create_admin", username, "N/A")
+	return c.JSON(http.StatusOK, map[string]string{"message": "Admin account created successfully"})
 	if err != nil {
 		utils.Logger.Error("Error creating admin account", zap.Error(err))
 		return echo.NewHTTPError(http.StatusInternalServerError, "Error creating admin account: "+err.Error())
