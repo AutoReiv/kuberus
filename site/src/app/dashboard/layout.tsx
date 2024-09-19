@@ -32,6 +32,16 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import SideNav from "./_components/SideNav";
 import { useTheme } from "next-themes";
+import { AnimatePresence, motion } from "framer-motion";
+import { useState } from "react";
+import { usePathname } from "next/navigation";
+
+export const pageVariants = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 },
+  transition: { type: "spring", stiffness: 100, damping: 20 },
+};
 
 const Layout = ({
   children,
@@ -39,11 +49,31 @@ const Layout = ({
   children: React.ReactNode;
 }>) => {
   const { setTheme } = useTheme();
+  const [isSideNavExpanded, setIsSideNavExpanded] = useState(false);
+  const pathname = usePathname();
+
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <SideNav />
-      <div className="flex flex-col">
-        <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
+    <motion.div
+      className="grid min-h-screen w-full md:grid-cols-[0_1fr]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <SideNav onExpand={setIsSideNavExpanded} />
+      <motion.div
+        className="flex flex-col"
+        animate={{
+          marginLeft: isSideNavExpanded ? "280px" : "64px",
+          width: isSideNavExpanded ? "calc(100% - 280px)" : "calc(100% - 64px)",
+        }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+      >
+        <motion.header
+          className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
           <Sheet>
             <SheetTrigger asChild>
               <Button
@@ -169,17 +199,15 @@ const Layout = ({
               <DropdownMenuItem>Logout</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </header>
+        </motion.header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-          <div
-            className="flex flex-1 rounded-lg border border-dashed shadow-sm"
-          >
+          <div className="flex flex-1 rounded-lg border border-dashed shadow-sm">
             {/* <div className="flex flex-col items-center gap-1 text-center"> */}
             {children}
           </div>
         </main>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

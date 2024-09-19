@@ -1,9 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Copy } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Accordion,
@@ -11,6 +8,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { apiClient } from "@/lib/apiClient";
 
 interface ClusterRoleBindingDetail {
   clusterRole: {
@@ -79,19 +77,6 @@ interface ClusterRoleBindingDetail {
   }[];
 }
 
-const fetchClusterRoleBindingDetails = async (name) => {
-  const URL = `http://localhost:8080/api/clusterroles/details?clusterRoleName=${name}`;
-  const response = await fetch(URL, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-  });
-  const data = await response.json();
-  return data;
-};
-
 const ClusterRoleBindingDetailsPage = (params: {
   params: { name: string };
 }) => {
@@ -103,7 +88,7 @@ const ClusterRoleBindingDetailsPage = (params: {
     error,
   } = useQuery<ClusterRoleBindingDetail>({
     queryKey: ["clusterRoleDetails", name],
-    queryFn: () => fetchClusterRoleBindingDetails(name),
+    queryFn: () => apiClient.getClusterRoleBindingDetails(name as string),
   });
 
   if (isLoading) return <div>Loading...</div>;

@@ -81,6 +81,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { ResponsiveDialog } from "./ResponsiveDialog";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 
 const badges = [
   { name: "Create" },
@@ -116,7 +117,7 @@ export default function DataTable({ roles, namespace }) {
   const [deleteConfirmationDialogs, setDeleteConfirmationDialogs] = useState<
     Record<string, boolean>
   >({});
-
+  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const setDeleteConfirmationDialog = (key: string, isOpen: boolean) => {
     setDeleteConfirmationDialogs((prev) => ({ ...prev, [key]: isOpen }));
   };
@@ -394,6 +395,48 @@ rules:
     createRole(values, true);
   };
 
+  const GridView: React.FC<{ data: Role[] }> = ({ data }) => {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {data.map((role) => (
+          <motion.div
+            key={role.metadata.uid}
+            whileHover={{ scale: 1.05 }}
+            transition={{ type: "spring", stiffness: 100, mass: 0.5 }}
+          >
+            <Card className="h-full flex flex-col justify-between shadow-lg">
+              <CardHeader className="bg-primary/10 rounded-t-lg">
+                <CardTitle className="text-xl font-bold">
+                  {role.metadata.name}
+                </CardTitle>
+                <CardDescription className="text-sm opacity-70">
+                  {role.metadata.namespace}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow">
+                <p className="text-sm mt-2">
+                  Created:{" "}
+                  {format(
+                    new Date(role.metadata.creationTimestamp),
+                    "MM/dd - hh:mm:ss a"
+                  )}
+                </p>
+              </CardContent>
+              <CardFooter className="bg-secondary/10 rounded-b-lg">
+                <Link
+                  href={`/dashboard/roles/${role.metadata.namespace}/${role.metadata.name}`}
+                  className="w-full"
+                >
+                  <Button className="w-full">View Details</Button>
+                </Link>
+              </CardFooter>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <Card className="h-full">
       <CardHeader>
@@ -551,7 +594,7 @@ rules:
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center py-4">
+        <div className="flex items-center justify-between py-4">
           <Input
             placeholder="Filter name..."
             value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
@@ -560,55 +603,86 @@ rules:
             }
             className="max-w-sm"
           />
+          <Button
+            onClick={() => setViewMode(viewMode === "table" ? "grid" : "table")}
+          >
+            {viewMode === "table" ? "Switch to Grid" : "Switch to Table"}
+          </Button>
         </div>
-        <Table className="h-full">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
+        <AnimatePresence mode="wait">
+          {viewMode === "table" ? (
+            <motion.div
+              key="table"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Table className="h-full">
+                <TableHeader>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => {
+                        return (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </TableHead>
+                        );
+                      })}
+                    </TableRow>
                   ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+                </TableHeader>
+                <TableBody>
+                  {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && "selected"}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="h-24 text-center"
+                      >
+                        No results.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="grid"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <GridView
+                data={table
+                  .getFilteredRowModel()
+                  .rows.map((row) => row.original)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </CardContent>
       <CardFooter>
         <div className="flex-1 text-sm text-muted-foreground">
