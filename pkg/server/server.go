@@ -113,6 +113,9 @@ func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Confi
 	// Audit logs route
 	api.GET("/audit-logs", handlers.GetAuditLogsHandler)
 
+	// Proxy route with cluster parameter
+	e.Any("/proxy/:cluster/*", handlers.ProxyHandler)
+
 	// Health check endpoint
 	e.GET("/health", func(c echo.Context) error {
 		return c.String(http.StatusOK, "OK")
