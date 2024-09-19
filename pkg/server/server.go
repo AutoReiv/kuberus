@@ -9,6 +9,7 @@ import (
 	"rbac/pkg/middleware"
 
 	"github.com/labstack/echo/v4"
+	echoMiddleware "github.com/labstack/echo/v4/middleware"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -36,6 +37,12 @@ func NewConfig() *Config {
 func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Config) {
 	// Apply middlewares
 	middleware.ApplyMiddlewares(e, config.IsDevMode)
+
+	// CORS middleware
+	e.Use(echoMiddleware.CORSWithConfig(echoMiddleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete},
+	}))
 
 	// Admin account creation route
 	e.POST("/admin/create", handlers.CreateAdminHandler)
