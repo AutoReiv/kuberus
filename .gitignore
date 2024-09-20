@@ -1,8 +1,6 @@
 # Ignore certificate and key files
 db.db
 .env
-mycli.exe
-.kube
 
 
 # Other common ignores
