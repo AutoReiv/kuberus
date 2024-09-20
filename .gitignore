@@ -2,6 +2,7 @@
 db.db
 .env
 mycli.exe
+.kube
 
 
 # Other common ignores

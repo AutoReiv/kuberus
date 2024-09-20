@@ -53,9 +53,6 @@ func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Confi
 	e.GET("/auth/oidc/login", handlers.OIDCAuthHandler)
 	e.GET("/auth/oidc/callback", handlers.OIDCCallbackHandler)
 
-	// Token route
-    e.GET("/auth/token", handlers.TokenHandler)
-
 	// Admin OIDC configuration route
 	e.POST("/admin/oidc/config", middleware.JWTMiddleware()(handlers.SetOIDCConfigHandler))
 	// Admin Certificate Upload route
@@ -122,9 +119,6 @@ func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Confi
 
 	// Audit logs route
 	api.GET("/audit-logs", handlers.GetAuditLogsHandler)
-
-	// Proxy route with cluster parameter
-	e.Any("/proxy/:cluster/*", handlers.ProxyHandler)
 
 	// Health check endpoint
 	e.GET("/health", func(c echo.Context) error {
