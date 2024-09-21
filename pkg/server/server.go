@@ -134,4 +134,7 @@ func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Confi
 	e.GET("/", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"message": "Welcome to the RBAC Manager"})
 	})
+
+	// Simulation route
+	api.POST("/simulate", rbac.SimulateHandler(clientset))
 }
