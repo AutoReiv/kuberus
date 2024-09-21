@@ -22,7 +22,7 @@ type UserSource struct {
 // UsersHandler handles requests related to listing users.
 func UsersHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		// Fetch users created by admin
+		// Fetch users created by admin and OIDC users
 		adminUsers, err := auth.GetAllUsers()
 		if err != nil {
 			utils.Logger.Error("Error retrieving users from database", zap.Error(err))
@@ -45,7 +45,7 @@ func UsersHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 		// Combine the lists, ensuring no duplicates, and indicate the source
 		userSet := make(map[string]string)
 		for _, user := range adminUsers {
-			userSet[user.Username] = "admin"
+			userSet[user.Username] = user.Source
 		}
 		for _, user := range k8sUsers {
 			if _, exists := userSet[user]; !exists {

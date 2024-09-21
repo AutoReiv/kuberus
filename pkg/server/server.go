@@ -9,6 +9,7 @@ import (
 	"rbac/pkg/middleware"
 
 	"github.com/labstack/echo/v4"
+	echoMiddleware "github.com/labstack/echo/v4/middleware"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -37,6 +38,12 @@ func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Confi
 	// Apply middlewares
 	middleware.ApplyMiddlewares(e, config.IsDevMode)
 
+	// CORS middleware
+	e.Use(echoMiddleware.CORSWithConfig(echoMiddleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete},
+	}))
+
 	// Admin account creation route
 	e.POST("/admin/create", handlers.CreateAdminHandler)
 
@@ -53,7 +60,9 @@ func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Confi
 	e.POST("/admin/upload-certs", middleware.JWTMiddleware()(uploadCertsHandler.ServeHTTP))
 
 	// User management routes
-	e.POST("/admin/users", middleware.JWTMiddleware()(handlers.UserManagementHandler(clientset)))
+	e.POST("/admin/users", middleware.JWTMiddleware()(func(c echo.Context) error {
+		return handlers.HandleCreateUser(c, clientset)
+	}))
 	e.DELETE("/admin/users", middleware.JWTMiddleware()(handlers.UserManagementHandler(clientset)))
 	e.GET("/admin/users", middleware.JWTMiddleware()(handlers.UserManagementHandler(clientset)))
 	e.PUT("/admin/users", middleware.JWTMiddleware()(handlers.UserManagementHandler(clientset)))
@@ -110,6 +119,9 @@ func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Confi
 	api.GET("/groups", rbac.GroupsHandler(clientset))
 	api.GET("/group-details", rbac.GroupDetailsHandler(clientset))
 
+	// User roles route
+	api.GET("/user-roles", middleware.JWTMiddleware()(rbac.UserRolesHandler(clientset)))
+
 	// Audit logs route
 	api.GET("/audit-logs", handlers.GetAuditLogsHandler)
 
@@ -122,4 +134,7 @@ func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Confi
 	e.GET("/", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"message": "Welcome to the RBAC Manager"})
 	})
+
+	// Simulation route
+	api.POST("/simulate", rbac.SimulateHandler(clientset))
 }

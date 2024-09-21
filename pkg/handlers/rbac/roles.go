@@ -249,3 +249,39 @@ func validateRole(role *rbacv1.Role) error {
 	}
 	return nil
 }
+
+// EnsureReadOnlyRole ensures that the read-only role exists in the specified namespace.
+func EnsureReadOnlyRole(clientset *kubernetes.Clientset, namespace string) error {
+    roleName := "read-only"
+
+    // Check if the role already exists
+    _, err := clientset.RbacV1().Roles(namespace).Get(context.TODO(), roleName, metav1.GetOptions{})
+    if err == nil {
+        // Role already exists, no need to create it
+        return nil
+    }
+
+    // Define the read-only role
+    readOnlyRole := &rbacv1.Role{
+        ObjectMeta: metav1.ObjectMeta{
+            Name: roleName,
+        },
+        Rules: []rbacv1.PolicyRule{
+            {
+                APIGroups: []string{""},
+                Resources: []string{"pods", "services", "deployments"},
+                Verbs:     []string{"get", "list", "watch"},
+            },
+        },
+    }
+
+    // Create the read-only role
+    _, err = clientset.RbacV1().Roles(namespace).Create(context.TODO(), readOnlyRole, metav1.CreateOptions{})
+    if err != nil {
+        utils.Logger.Error("Failed to create read-only role", zap.Error(err))
+        return err
+    }
+
+    utils.Logger.Info("Read-only role created successfully", zap.String("roleName", roleName), zap.String("namespace", namespace))
+    return nil
+}

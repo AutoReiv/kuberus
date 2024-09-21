@@ -31,26 +31,27 @@ func ApplyMiddlewares(e *echo.Echo, isDevMode bool) {
 
 // AuthMiddleware validates the JWT token and sets the user information in the request context.
 func AuthMiddleware(next echo.HandlerFunc, isDevMode bool) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		if isDevMode {
-			return next(c)
-		}
+    return func(c echo.Context) error {
+        if isDevMode {
+            return next(c)
+        }
 
-		authHeader := c.Request().Header.Get("Authorization")
-		if authHeader == "" {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Authorization header is required")
-		}
+        authHeader := c.Request().Header.Get("Authorization")
+        if authHeader == "" {
+            return echo.NewHTTPError(http.StatusUnauthorized, "Authorization header is required")
+        }
 
-		token := strings.TrimPrefix(authHeader, "Bearer ")
-		claims, err := auth.ValidateJWT(token)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Invalid token: "+err.Error())
-		}
+        token := strings.TrimPrefix(authHeader, "Bearer ")
+        claims, err := auth.ValidateJWT(token)
+        if err != nil {
+            return echo.NewHTTPError(http.StatusUnauthorized, "Invalid token: "+err.Error())
+        }
 
-		// Add username to context
-		c.Set("username", claims.Username)
-		return next(c)
-	}
+        // Add username and admin status to context
+        c.Set("username", claims.Username)
+        c.Set("isAdmin", claims.IsAdmin)
+        return next(c)
+    }
 }
 
 // JWTMiddleware returns the JWT middleware configuration.

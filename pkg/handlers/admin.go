@@ -29,6 +29,12 @@ func CreateAdminHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload: "+err.Error())
 	}
 
+	// Ensure Password and PasswordConfirm match
+	if req.Password != req.PasswordConfirm {
+		utils.Logger.Warn("Passwords do not match")
+		return echo.NewHTTPError(http.StatusBadRequest, "Passwords do not match")
+	}
+
 	// Sanitize user input
 	username := utils.SanitizeInput(req.Username)
 	password := utils.SanitizeInput(req.Password)
@@ -60,7 +66,7 @@ func CreateAdminHandler(c echo.Context) error {
 	}
 
 	// Store the admin account information
-	_, err = db.DB.Exec("INSERT INTO users (username, password) VALUES (?, ?)", username, hashedPassword)
+	_, err = db.DB.Exec("INSERT INTO users (username, password, source, is_admin) VALUES (?, ?, 'internal', true)", username, hashedPassword)
 	if err != nil {
 		utils.Logger.Error("Error creating admin account", zap.Error(err))
 		return echo.NewHTTPError(http.StatusInternalServerError, "Error creating admin account: "+err.Error())

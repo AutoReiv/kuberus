@@ -28,29 +28,32 @@ func generateRandomKey(length int) []byte {
 
 // Claims defines the structure of the JWT claims
 type Claims struct {
-	Username string `json:"username"`
-	jwt.RegisteredClaims
+    Username string `json:"username"`
+    IsAdmin  bool   `json:"isAdmin"`
+    jwt.RegisteredClaims
 }
 
+
 // GenerateJWT generates a new JWT token for a given username
-func GenerateJWT(username string) (string, error) {
-	expirationTime := time.Now().Add(24 * time.Hour)
-	claims := &Claims{
-		Username: username,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-		},
-	}
+func GenerateJWT(username string, isAdmin bool) (string, error) {
+    expirationTime := time.Now().Add(24 * time.Hour)
+    claims := &Claims{
+        Username: username,
+        IsAdmin:  isAdmin,
+        RegisteredClaims: jwt.RegisteredClaims{
+            ExpiresAt: jwt.NewNumericDate(expirationTime),
+        },
+    }
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(JwtKey)
-	if err != nil {
-		return "", err
-	}
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    tokenString, err := token.SignedString(JwtKey)
+    if err != nil {
+        return "", err
+    }
 
-	// Debug statement
-	utils.Logger.Debug("Generated JWT", zap.String("token", tokenString))
-	return tokenString, nil
+    // Debug statement
+    utils.Logger.Debug("Generated JWT", zap.String("token", tokenString))
+    return tokenString, nil
 }
 
 // ValidateJWT validates a JWT token and returns the claims if valid
