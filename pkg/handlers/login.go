@@ -22,31 +22,34 @@ type LoginResponse struct {
 
 // LoginHandler handles user login.
 func LoginHandler(c echo.Context) error {
-	var req LoginRequest
-	if err := c.Bind(&req); err != nil {
-		utils.Logger.Error("Invalid request payload", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
-	}
+    var req LoginRequest
+    if err := c.Bind(&req); err != nil {
+        utils.Logger.Error("Invalid request payload", zap.Error(err))
+        return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
+    }
 
-	// Sanitize user input
-	username := utils.SanitizeInput(req.Username)
-	password := utils.SanitizeInput(req.Password)
+    // Sanitize user input
+    username := utils.SanitizeInput(req.Username)
+    password := utils.SanitizeInput(req.Password)
 
-	// Authenticate user
-	if !auth.AuthenticateUser(username, password) {
-		utils.Logger.Warn("Login failed", zap.String("username", username))
-		utils.LogAuditEvent(c.Request(), "login_failed", username, "N/A")
-		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid credentials"})
-	}
+    // Authenticate user
+    if !auth.AuthenticateUser(username, password) {
+        utils.Logger.Warn("Login failed", zap.String("username", username))
+        utils.LogAuditEvent(c.Request(), "login_failed", username, "N/A")
+        return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid credentials"})
+    }
 
-	// Generate JWT token
-	token, err := auth.GenerateJWT(username)
-	if err != nil {
-		utils.Logger.Error("Failed to generate token", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate token: " + err.Error()})
-	}
+    // Check if the user is an admin
+    isAdmin := auth.IsAdmin(username)
 
-	utils.Logger.Info("Login successful", zap.String("username", username))
-	utils.LogAuditEvent(c.Request(), "login_success", username, "N/A")
-	return c.JSON(http.StatusOK, LoginResponse{Token: token})
+    // Generate JWT token
+    token, err := auth.GenerateJWT(username, isAdmin)
+    if err != nil {
+        utils.Logger.Error("Failed to generate token", zap.Error(err))
+        return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate token: " + err.Error()})
+    }
+
+    utils.Logger.Info("Login successful", zap.String("username", username))
+    utils.LogAuditEvent(c.Request(), "login_success", username, "N/A")
+    return c.JSON(http.StatusOK, LoginResponse{Token: token})
 }

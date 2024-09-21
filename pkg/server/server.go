@@ -60,7 +60,9 @@ func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Confi
 	e.POST("/admin/upload-certs", middleware.JWTMiddleware()(uploadCertsHandler.ServeHTTP))
 
 	// User management routes
-	e.POST("/admin/users", middleware.JWTMiddleware()(handlers.UserManagementHandler(clientset)))
+	e.POST("/admin/users", middleware.JWTMiddleware()(func(c echo.Context) error {
+		return handlers.HandleCreateUser(c, clientset)
+	}))
 	e.DELETE("/admin/users", middleware.JWTMiddleware()(handlers.UserManagementHandler(clientset)))
 	e.GET("/admin/users", middleware.JWTMiddleware()(handlers.UserManagementHandler(clientset)))
 	e.PUT("/admin/users", middleware.JWTMiddleware()(handlers.UserManagementHandler(clientset)))
@@ -116,6 +118,9 @@ func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Confi
 	// Group routes
 	api.GET("/groups", rbac.GroupsHandler(clientset))
 	api.GET("/group-details", rbac.GroupDetailsHandler(clientset))
+
+	// User roles route
+	api.GET("/user-roles", middleware.JWTMiddleware()(rbac.UserRolesHandler(clientset)))
 
 	// Audit logs route
 	api.GET("/audit-logs", handlers.GetAuditLogsHandler)

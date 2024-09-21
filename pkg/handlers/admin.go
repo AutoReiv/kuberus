@@ -66,7 +66,7 @@ func CreateAdminHandler(c echo.Context) error {
 	}
 
 	// Store the admin account information
-	_, err = db.DB.Exec("INSERT INTO users (username, password, source) VALUES (?, ?, 'internal')", username, hashedPassword)
+	_, err = db.DB.Exec("INSERT INTO users (username, password, source, is_admin) VALUES (?, ?, 'internal', true)", username, hashedPassword)
 	if err != nil {
 		utils.Logger.Error("Error creating admin account", zap.Error(err))
 		return echo.NewHTTPError(http.StatusInternalServerError, "Error creating admin account: "+err.Error())
