@@ -37,8 +37,7 @@ func ServiceAccountsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 func handleListServiceAccounts(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
 	serviceAccounts, err := clientset.CoreV1().ServiceAccounts(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		utils.Logger.Error("Error listing service accounts", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing service accounts", err, "Failed to list service accounts")
 	}
 	utils.Logger.Info("Listed service accounts", zap.String("namespace", namespace))
 	return c.JSON(http.StatusOK, serviceAccounts.Items)
@@ -48,14 +47,12 @@ func handleListServiceAccounts(c echo.Context, clientset *kubernetes.Clientset, 
 func handleCreateServiceAccount(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
 	var serviceAccount corev1.ServiceAccount
 	if err := c.Bind(&serviceAccount); err != nil {
-		utils.Logger.Error("Failed to decode request body", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Failed to decode request body: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to decode request body", err, "Failed to bind create service account request")
 	}
 
 	createdServiceAccount, err := clientset.CoreV1().ServiceAccounts(namespace).Create(context.TODO(), &serviceAccount, metav1.CreateOptions{})
 	if err != nil {
-		utils.Logger.Error("Failed to create service account", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create service account: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to create service account", err, "Failed to create service account in Kubernetes")
 	}
 
 	utils.Logger.Info("Service account created successfully", zap.String("serviceAccountName", serviceAccount.Name), zap.String("namespace", namespace))
@@ -68,13 +65,12 @@ func handleDeleteServiceAccount(c echo.Context, clientset *kubernetes.Clientset,
 	name := c.QueryParam("name")
 	if name == "" {
 		utils.Logger.Warn("Service account name is required")
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Service account name is required"})
+		return echo.NewHTTPError(http.StatusBadRequest, "Service account name is required")
 	}
 
 	err := clientset.CoreV1().ServiceAccounts(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
-		utils.Logger.Error("Failed to delete service account", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete service account: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to delete service account", err, "Failed to delete service account in Kubernetes")
 	}
 
 	utils.Logger.Info("Service account deleted successfully", zap.String("serviceAccountName", name), zap.String("namespace", namespace))

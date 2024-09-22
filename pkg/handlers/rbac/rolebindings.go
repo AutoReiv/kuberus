@@ -40,8 +40,7 @@ func RoleBindingsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 func handleListRoleBindings(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
 	roleBindings, err := clientset.RbacV1().RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		utils.Logger.Error("Error listing role bindings", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing role bindings", err, "Failed to list role bindings")
 	}
 	utils.Logger.Info("Listed role bindings", zap.String("namespace", namespace))
 	return c.JSON(http.StatusOK, roleBindings.Items)
@@ -51,19 +50,16 @@ func handleListRoleBindings(c echo.Context, clientset *kubernetes.Clientset, nam
 func handleCreateRoleBinding(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
 	var roleBinding rbacv1.RoleBinding
 	if err := c.Bind(&roleBinding); err != nil {
-		utils.Logger.Error("Failed to decode request body", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Failed to decode request body: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to decode request body", err, "Failed to bind create role binding request")
 	}
 
 	if err := validateRoleBinding(&roleBinding); err != nil {
-		utils.Logger.Error("Invalid role binding", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid role binding: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid role binding", err, "Invalid role binding data")
 	}
 
 	createdRoleBinding, err := clientset.RbacV1().RoleBindings(namespace).Create(context.TODO(), &roleBinding, metav1.CreateOptions{})
 	if err != nil {
-		utils.Logger.Error("Failed to create role binding", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create role binding: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to create role binding", err, "Failed to create role binding in Kubernetes")
 	}
 
 	utils.Logger.Info("Role binding created successfully", zap.String("roleBindingName", roleBinding.Name), zap.String("namespace", namespace))
@@ -75,19 +71,16 @@ func handleCreateRoleBinding(c echo.Context, clientset *kubernetes.Clientset, na
 func handleUpdateRoleBinding(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
 	var roleBinding rbacv1.RoleBinding
 	if err := c.Bind(&roleBinding); err != nil {
-		utils.Logger.Error("Failed to decode request body", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Failed to decode request body: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to decode request body", err, "Failed to bind update role binding request")
 	}
 
 	if err := validateRoleBinding(&roleBinding); err != nil {
-		utils.Logger.Error("Invalid role binding", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid role binding: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid role binding", err, "Invalid role binding data")
 	}
 
 	updatedRoleBinding, err := clientset.RbacV1().RoleBindings(namespace).Update(context.TODO(), &roleBinding, metav1.UpdateOptions{})
 	if err != nil {
-		utils.Logger.Error("Failed to update role binding", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update role binding: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to update role binding", err, "Failed to update role binding in Kubernetes")
 	}
 
 	utils.Logger.Info("Role binding updated successfully", zap.String("roleBindingName", roleBinding.Name), zap.String("namespace", namespace))
@@ -104,8 +97,7 @@ func handleDeleteRoleBinding(c echo.Context, clientset *kubernetes.Clientset, na
 
 	err := clientset.RbacV1().RoleBindings(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
-		utils.Logger.Error("Failed to delete role binding", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete role binding: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to delete role binding", err, "Failed to delete role binding in Kubernetes")
 	}
 
 	utils.Logger.Info("Role binding deleted successfully", zap.String("roleBindingName", name), zap.String("namespace", namespace))
@@ -124,8 +116,7 @@ func RoleBindingDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc
 
 		roleBinding, err := clientset.RbacV1().RoleBindings(namespace).Get(context.TODO(), roleBindingName, metav1.GetOptions{})
 		if err != nil {
-			utils.Logger.Error("Error fetching role binding details", zap.Error(err))
-			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error fetching role binding details", err, "Failed to fetch role binding details")
 		}
 
 		utils.Logger.Info("Fetched role binding details", zap.String("roleBindingName", roleBindingName), zap.String("namespace", namespace))

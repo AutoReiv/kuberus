@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"rbac/pkg/db"
+	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
 )
@@ -21,7 +22,7 @@ type AuditLog struct {
 func GetAuditLogsHandler(c echo.Context) error {
 	rows, err := db.DB.Query("SELECT id, action, resource_name, namespace, timestamp, hash FROM audit_logs ORDER BY timestamp DESC")
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to retrieve audit logs: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to retrieve audit logs", err, "Failed to query audit logs from database")
 	}
 	defer rows.Close()
 
@@ -29,7 +30,7 @@ func GetAuditLogsHandler(c echo.Context) error {
 	for rows.Next() {
 		var log AuditLog
 		if err := rows.Scan(&log.ID, &log.Action, &log.ResourceName, &log.Namespace, &log.Timestamp, &log.Hash); err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to scan audit log: " + err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to scan audit log", err, "Failed to scan audit log row")
 		}
 		logs = append(logs, log)
 	}

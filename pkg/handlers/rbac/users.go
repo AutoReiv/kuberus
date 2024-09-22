@@ -7,7 +7,6 @@ import (
 	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
-	"go.uber.org/zap"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -25,19 +24,18 @@ func UsersHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 		// Fetch users created by admin and OIDC users
 		adminUsers, err := auth.GetAllUsers()
 		if err != nil {
-			utils.Logger.Error("Error retrieving users from database", zap.Error(err))
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error retrieving users from database: " + err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error retrieving users from database", err, "Failed to retrieve users from database")
 		}
 
 		// Fetch users from RoleBindings and ClusterRoleBindings
 		roleBindings, err := clientset.RbacV1().RoleBindings("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing role bindings", err, "Failed to list role bindings")
 		}
 
 		clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing cluster role bindings", err, "Failed to list cluster role bindings")
 		}
 
 		k8sUsers := extractUsersFromBindings(roleBindings.Items, clusterRoleBindings.Items)

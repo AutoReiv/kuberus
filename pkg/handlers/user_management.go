@@ -161,14 +161,13 @@ func assignReadOnlyRole(clientset *kubernetes.Clientset, username string) error 
 func handleUpdateUser(c echo.Context) error {
 	var req UpdateUserRequest
 	if err := c.Bind(&req); err != nil {
-		utils.Logger.Error("Invalid request payload", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid request payload", err, "Failed to bind update user request")
 	}
 
 	// Ensure Password and PasswordConfirm match
 	if req.Password != req.PasswordConfirm {
 		utils.Logger.Warn("Passwords do not match")
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Passwords do not match"})
+		return echo.NewHTTPError(http.StatusBadRequest, "Passwords do not match")
 	}
 
 	// Sanitize user input
@@ -178,13 +177,12 @@ func handleUpdateUser(c echo.Context) error {
 	// Validate password strength
 	if !utils.IsStrongPassword(password) {
 		utils.Logger.Warn("Password does not meet strength requirements")
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Password does not meet strength requirements"})
+		return echo.NewHTTPError(http.StatusBadRequest, "Password does not meet strength requirements")
 	}
 
 	// Update user
 	if err := auth.UpdateUser(username, password); err != nil {
-		utils.Logger.Error("Error updating user password", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error updating user: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error updating user password", err, "Failed to update user password")
 	}
 
 	utils.Logger.Info("User account updated successfully", zap.String("username", username))
@@ -195,8 +193,7 @@ func handleUpdateUser(c echo.Context) error {
 func handleDeleteUser(c echo.Context) error {
 	var req DeleteUserRequest
 	if err := c.Bind(&req); err != nil {
-		utils.Logger.Error("Invalid request payload", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid request payload", err, "Failed to bind delete user request")
 	}
 
 	// Sanitize user input
@@ -204,8 +201,7 @@ func handleDeleteUser(c echo.Context) error {
 
 	// Delete user
 	if err := auth.DeleteUser(username); err != nil {
-		utils.Logger.Error("Error deleting user", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error deleting user: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error deleting user", err, "Failed to delete user account")
 	}
 
 	utils.Logger.Info("User account deleted successfully", zap.String("username", username))
@@ -216,8 +212,7 @@ func handleDeleteUser(c echo.Context) error {
 func handleListUsers(c echo.Context) error {
 	users, err := auth.GetAllUsers()
 	if err != nil {
-		utils.Logger.Error("Error retrieving users", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error retrieving users: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error retrieving users", err, "Failed to retrieve users")
 	}
 
 	utils.Logger.Info("Retrieved user list successfully")

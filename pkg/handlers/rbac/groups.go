@@ -3,6 +3,7 @@ package rbac
 import (
 	"context"
 	"net/http"
+	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -15,12 +16,12 @@ func GroupsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		roleBindings, err := clientset.RbacV1().RoleBindings("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing role bindings", err, "Failed to list role bindings")
 		}
 
 		clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing cluster role bindings", err, "Failed to list cluster role bindings")
 		}
 
 		groups := extractGroupsFromBindings(roleBindings.Items, clusterRoleBindings.Items)

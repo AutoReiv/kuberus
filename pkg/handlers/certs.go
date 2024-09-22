@@ -48,49 +48,42 @@ func (h *UploadCertsHandler) handleUpload(c echo.Context) error {
 
 	// Parse the multipart form
 	if err := c.Request().ParseMultipartForm(10 << 20); err != nil {
-		utils.Logger.Error("Failed to parse form", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse form: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to parse form", err, "Failed to parse multipart form")
 	}
 
 	// Retrieve the certificate and key files
 	certFile, _, err := c.Request().FormFile("certFile")
 	if err != nil {
-		utils.Logger.Error("Failed to retrieve cert file", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Failed to retrieve cert file: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to retrieve cert file", err, "Failed to retrieve cert file from form")
 	}
 	defer certFile.Close()
 
 	keyFile, _, err := c.Request().FormFile("keyFile")
 	if err != nil {
-		utils.Logger.Error("Failed to retrieve key file", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Failed to retrieve key file: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to retrieve key file", err, "Failed to retrieve key file from form")
 	}
 	defer keyFile.Close()
 
 	// Read the certificate and key files
 	certData, err := io.ReadAll(certFile)
 	if err != nil {
-		utils.Logger.Error("Failed to read cert file", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to read cert file: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to read cert file", err, "Failed to read cert file")
 	}
 
 	keyData, err := io.ReadAll(keyFile)
 	if err != nil {
-		utils.Logger.Error("Failed to read key file", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to read key file: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to read key file", err, "Failed to read key file")
 	}
 
 	// Validate the certificate and key files
 	if err := isValidCertAndKey(certData, keyData); err != nil {
-		utils.Logger.Error("Invalid certificate or key", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid certificate or key: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid certificate or key", err, "Invalid certificate or key")
 	}
 
 	// Store the certificates in the database
 	_, err = db.DB.Exec("INSERT INTO certificates (cert, key) VALUES (?, ?)", certData, keyData)
 	if err != nil {
-		utils.Logger.Error("Failed to store certificates", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to store certificates: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to store certificates", err, "Failed to store certificates in database")
 	}
 
 	utils.Logger.Info("Certificates uploaded successfully", zap.String("username", username))
@@ -114,49 +107,42 @@ func (h *UploadCertsHandler) handleUpdate(c echo.Context) error {
 
 	// Parse the multipart form
 	if err := c.Request().ParseMultipartForm(10 << 20); err != nil {
-		utils.Logger.Error("Failed to parse form", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse form: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to parse form", err, "Failed to parse multipart form")
 	}
 
 	// Retrieve the certificate and key files
 	certFile, _, err := c.Request().FormFile("certFile")
 	if err != nil {
-		utils.Logger.Error("Failed to retrieve cert file", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Failed to retrieve cert file: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to retrieve cert file", err, "Failed to retrieve cert file from form")
 	}
 	defer certFile.Close()
 
 	keyFile, _, err := c.Request().FormFile("keyFile")
 	if err != nil {
-		utils.Logger.Error("Failed to retrieve key file", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Failed to retrieve key file: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to retrieve key file", err, "Failed to retrieve key file from form")
 	}
 	defer keyFile.Close()
 
 	// Read the certificate and key files
 	certData, err := io.ReadAll(certFile)
 	if err != nil {
-		utils.Logger.Error("Failed to read cert file", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to read cert file: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to read cert file", err, "Failed to read cert file")
 	}
 
 	keyData, err := io.ReadAll(keyFile)
 	if err != nil {
-		utils.Logger.Error("Failed to read key file", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to read key file: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to read key file", err, "Failed to read key file")
 	}
 
 	// Validate the certificate and key files
 	if err := isValidCertAndKey(certData, keyData); err != nil {
-		utils.Logger.Error("Invalid certificate or key", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid certificate or key: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid certificate or key", err, "Invalid certificate or key")
 	}
 
 	// Update the certificates in the database
 	_, err = db.DB.Exec("UPDATE certificates SET cert = ?, key = ? WHERE id = (SELECT id FROM certificates ORDER BY created_at DESC LIMIT 1)", certData, keyData)
 	if err != nil {
-		utils.Logger.Error("Failed to update certificates", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update certificates: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to update certificates", err, "Failed to update certificates in database")
 	}
 
 	utils.Logger.Info("Certificates updated successfully", zap.String("username", username))
@@ -181,8 +167,7 @@ func (h *UploadCertsHandler) handleDelete(c echo.Context) error {
 	// Delete the certificates from the database
 	_, err := db.DB.Exec("DELETE FROM certificates WHERE id = (SELECT id FROM certificates ORDER BY created_at DESC LIMIT 1)")
 	if err != nil {
-		utils.Logger.Error("Failed to delete certificates", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete certificates: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to delete certificates", err, "Failed to delete certificates from database")
 	}
 
 	utils.Logger.Info("Certificates deleted successfully", zap.String("username", username))

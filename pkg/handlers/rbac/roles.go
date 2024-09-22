@@ -109,73 +109,64 @@ func listAllNamespacesRoles(c echo.Context, clientset *kubernetes.Clientset) err
 	utils.Logger.Info("Listed roles across all namespaces")
 	return c.JSON(http.StatusOK, rolesWithStatus)
 }
+		// handleCreateRole handles creating a new role in a specific namespace.
+		func handleCreateRole(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
+			var role rbacv1.Role
+			if err := c.Bind(&role); err != nil {
+				return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to decode request body", err, "Failed to bind create role request")
+			}
 
-// handleCreateRole handles creating a new role in a specific namespace.
-func handleCreateRole(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
-	var role rbacv1.Role
-	if err := c.Bind(&role); err != nil {
-		utils.Logger.Error("Failed to decode request body", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Failed to decode request body: "+err.Error())
-	}
+			if err := validateRole(&role); err != nil {
+				return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid role", err, "Invalid role data")
+			}
 
-	if err := validateRole(&role); err != nil {
-		utils.Logger.Error("Invalid role", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid role: "+err.Error())
-	}
+			createdRole, err := clientset.RbacV1().Roles(namespace).Create(context.TODO(), &role, metav1.CreateOptions{})
+			if err != nil {
+				return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to create role", err, "Failed to create role in Kubernetes")
+			}
 
-	createdRole, err := clientset.RbacV1().Roles(namespace).Create(context.TODO(), &role, metav1.CreateOptions{})
-	if err != nil {
-		utils.Logger.Error("Failed to create role", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create role: "+err.Error())
-	}
+			utils.Logger.Info("Role created successfully", zap.String("roleName", role.Name), zap.String("namespace", namespace))
+			utils.LogAuditEvent(c.Request(), "create", role.Name, namespace)
+			return c.JSON(http.StatusOK, createdRole)
+		}
 
-	utils.Logger.Info("Role created successfully", zap.String("roleName", role.Name), zap.String("namespace", namespace))
-	utils.LogAuditEvent(c.Request(), "create", role.Name, namespace)
-	return c.JSON(http.StatusOK, createdRole)
-}
+		// handleUpdateRole handles updating an existing role in a specific namespace.
+		func handleUpdateRole(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
+			var role rbacv1.Role
+			if err := c.Bind(&role); err != nil {
+				return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to decode request body", err, "Failed to bind update role request")
+			}
 
-// handleUpdateRole handles updating an existing role in a specific namespace.
-func handleUpdateRole(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
-	var role rbacv1.Role
-	if err := c.Bind(&role); err != nil {
-		utils.Logger.Error("Failed to decode request body", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Failed to decode request body: "+err.Error())
-	}
+			if err := validateRole(&role); err != nil {
+				return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid role", err, "Invalid role data")
+			}
 
-	if err := validateRole(&role); err != nil {
-		utils.Logger.Error("Invalid role", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid role: "+err.Error())
-	}
+			updatedRole, err := clientset.RbacV1().Roles(namespace).Update(context.TODO(), &role, metav1.UpdateOptions{})
+			if err != nil {
+				return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to update role", err, "Failed to update role in Kubernetes")
+			}
 
-	updatedRole, err := clientset.RbacV1().Roles(namespace).Update(context.TODO(), &role, metav1.UpdateOptions{})
-	if err != nil {
-		utils.Logger.Error("Failed to update role", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update role: "+err.Error())
-	}
+			utils.Logger.Info("Role updated successfully", zap.String("roleName", role.Name), zap.String("namespace", namespace))
+			utils.LogAuditEvent(c.Request(), "update", role.Name, namespace)
+			return c.JSON(http.StatusOK, updatedRole)
+		}
 
-	utils.Logger.Info("Role updated successfully", zap.String("roleName", role.Name), zap.String("namespace", namespace))
-	utils.LogAuditEvent(c.Request(), "update", role.Name, namespace)
-	return c.JSON(http.StatusOK, updatedRole)
-}
+		// handleDeleteRole handles deleting a role in a specific namespace.
+		func handleDeleteRole(c echo.Context, clientset *kubernetes.Clientset, namespace, name string) error {
+			if name == "" {
+				utils.Logger.Warn("Role name is required")
+				return echo.NewHTTPError(http.StatusBadRequest, "Role name is required")
+			}
 
-// handleDeleteRole handles deleting a role in a specific namespace.
-func handleDeleteRole(c echo.Context, clientset *kubernetes.Clientset, namespace, name string) error {
-	if name == "" {
-		utils.Logger.Warn("Role name is required")
-		return echo.NewHTTPError(http.StatusBadRequest, "Role name is required")
-	}
+			err := clientset.RbacV1().Roles(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+			if err != nil {
+				return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to delete role", err, "Failed to delete role in Kubernetes")
+			}
 
-	err := clientset.RbacV1().Roles(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if err != nil {
-		utils.Logger.Error("Failed to delete role", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete role: "+err.Error())
-	}
-
-	utils.Logger.Info("Role deleted successfully", zap.String("roleName", name), zap.String("namespace", namespace))
-	utils.LogAuditEvent(c.Request(), "delete", name, namespace)
-	return c.NoContent(http.StatusNoContent)
-}
-
+			utils.Logger.Info("Role deleted successfully", zap.String("roleName", name), zap.String("namespace", namespace))
+			utils.LogAuditEvent(c.Request(), "delete", name, namespace)
+			return c.NoContent(http.StatusNoContent)
+		}
 // RoleDetailsResponse represents the detailed information about a role.
 type RoleDetailsResponse struct {
 	Role         *rbacv1.Role         `json:"role"`
