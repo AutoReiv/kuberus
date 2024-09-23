@@ -1,5 +1,4 @@
-# Use the official Golang image as the base image for building the application
-FROM golang:1.23-alpine AS builder
+FROM golang:1.23-alpine AS go-builder
 
 # Install necessary build dependencies
 RUN apk add --no-cache gcc musl-dev
@@ -19,11 +18,29 @@ COPY . .
 # Build the Go application
 RUN GOOS=linux GOARCH=amd64 go build -o myapp cmd/main.go
 
-# Use a minimal base image for the final container
+# Stage 2: Build the React frontend
+FROM node:18-alpine AS react-builder
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy the package.json and package-lock.json files
+COPY site/package.json site/package-lock.json ./
+
+# Install the dependencies
+RUN npm install
+
+# Copy the rest of the application code
+COPY site ./
+
+# Build the React application
+RUN npm run build
+
+# Stage 3: Create the final image
 FROM alpine:latest
 
 # Install necessary runtime dependencies
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates nginx
 
 # Create a non-root user
 RUN adduser -S myappuser
@@ -31,8 +48,11 @@ RUN adduser -S myappuser
 # Set the working directory inside the container
 WORKDIR /root/
 
-# Copy the built Go application from the builder stage
-COPY --from=builder /app/myapp .
+# Copy the built Go application from the go-builder stage
+COPY --from=go-builder /app/myapp .
+
+# Copy the built React app from the react-builder stage
+COPY --from=react-builder /app/build /usr/share/nginx/html
 
 # Change ownership of the application binary
 RUN chown myappuser myapp
@@ -40,11 +60,11 @@ RUN chown myappuser myapp
 # Switch to the non-root user
 USER myappuser
 
-# Expose the port the app runs on
-EXPOSE 8080
+# Expose the ports the apps run on
+EXPOSE 8080 80
 
 # Add a health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD wget --spider http://localhost:8080/health || exit 1
 
-# Command to run the executable
-CMD ["./myapp"]
+# Command to run both the Go backend and nginx
+CMD ["sh", "-c", "./myapp & nginx -g 'daemon off;'"]
