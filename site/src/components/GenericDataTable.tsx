@@ -39,12 +39,18 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import useInfiniteScroll from "react-infinite-scroll-hook";
 import { CSVLink } from "react-csv";
-import { Grid, Table2, TableIcon } from "lucide-react";
+import { Dot, DotSquare, Grid, MoreHorizontal, TableIcon } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 
 interface GenericDataTableProps<T> {
   data: T[];
   columns: ColumnDef<T>[];
-  title: string;
+  title?: string;
   description?: string;
   enableSorting?: boolean;
   enableFiltering?: boolean;
@@ -63,6 +69,8 @@ interface GenericDataTableProps<T> {
   loadMore?: () => void;
   hasMore?: boolean;
   className?: string;
+  enableQuickActions?: boolean;
+  quickActions?;
 }
 
 function GenericDataTable<T>({
@@ -86,7 +94,9 @@ function GenericDataTable<T>({
   infiniteScroll = false,
   loadMore,
   hasMore = false,
-  className
+  className,
+  enableQuickActions = false,
+  quickActions,
 }: GenericDataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -170,6 +180,17 @@ function GenericDataTable<T>({
     return JSON.stringify(jsonData, null, 2);
   };
 
+  const renderQuickActions = (row: T) => {
+    if (!enableQuickActions || !quickActions) return null;
+    return (
+      <div className="flex space-x-2">
+        {quickActions(row).map((action, index) => (
+          <React.Fragment key={index}>{action}</React.Fragment>
+        ))}
+      </div>
+    );
+  };
+
   const GridView = () => (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {data.map((item, index) => (
@@ -217,11 +238,25 @@ function GenericDataTable<T>({
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost">Actions</Button>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">Open menu</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          {rowActions(row).map((action, index) => (
-            <DropdownMenuItem key={index}>{action}</DropdownMenuItem>
+        <DropdownMenuContent className="w-auto bg-white dark:bg-gray-800 rounded-md shadow-lg flex items-center justify-center">
+          {rowActions(row).map((action: any, index) => (
+            <TooltipProvider key={index}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuItem className="cursor-pointer w-full px-4 py-2 rounded-sm flex items-center gap-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">
+                    {action}
+                  </DropdownMenuItem>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{`${action.props.children}`}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -257,7 +292,7 @@ function GenericDataTable<T>({
 
   return (
     <Card className={className}>
-      <CardHeader>
+      <CardHeader className={title ? "inherit" : "py-1"}>
         <CardTitle>{title}</CardTitle>
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
@@ -328,13 +363,21 @@ function GenericDataTable<T>({
               </DropdownMenuContent>
             </DropdownMenu>
             {enableGridView && (
-              <Button
-                onClick={() =>
-                  setViewMode(viewMode === "table" ? "grid" : "table")
-                }
+              <motion.div
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                {viewMode === "table" ? <Grid /> : <TableIcon />}
-              </Button>
+                <Button
+                  onClick={() =>
+                    setViewMode(viewMode === "table" ? "grid" : "table")
+                  }
+                >
+                  {viewMode === "table" ? <Grid /> : <TableIcon />}
+                </Button>
+              </motion.div>
             )}
             {renderBulkActions()}
           </div>
@@ -354,15 +397,20 @@ function GenericDataTable<T>({
                     <TableRow key={headerGroup.id}>
                       {headerGroup.headers.map((header) => (
                         <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
+                          <motion.div
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </motion.div>
                         </TableHead>
                       ))}
-                      {rowActions && <TableHead>Actions</TableHead>}
                     </TableRow>
                   ))}
                 </TableHeader>
@@ -373,8 +421,10 @@ function GenericDataTable<T>({
                         <TableRow
                           key={row.id}
                           data-state={row.getIsSelected() && "selected"}
-                          onClick={() => onRowClick && onRowClick(row.original)}
-                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={(e) => {
+                            onRowClick && onRowClick(row.original);
+                          }}
+                          className="hover:bg-muted/50"
                         >
                           {row.getVisibleCells().map((cell) => (
                             <TableCell key={cell.id}>
@@ -384,6 +434,11 @@ function GenericDataTable<T>({
                               )}
                             </TableCell>
                           ))}
+                          {enableQuickActions && (
+                            <TableCell>
+                              {renderQuickActions(row.original)}
+                            </TableCell>
+                          )}
                           {rowActions && (
                             <TableCell>
                               {renderRowActions(row.original)}

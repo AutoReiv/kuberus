@@ -10,6 +10,9 @@ import {
   Package2,
   Bell,
   Blend,
+  Group,
+  GroupIcon,
+  Folder,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,14 +61,24 @@ const SideNav = ({ onExpand }: { onExpand: (expanded: boolean) => void }) => {
       path: "/dashboard/cluster-role-bindings",
     },
     {
+      name: "Namespaces",
+      icon: <Folder className="h-6 w-6" />,
+      path: "/dashboard/namespaces",
+    },
+    {
       name: "Service Accounts",
       icon: <UserCircle className="h-6 w-6" />,
       path: "/dashboard/service-accounts",
     },
     {
       name: "Groups",
-      icon: <Users className="h-6 w-6" />,
+      icon: <Group className="h-6 w-6" />,
       path: "/dashboard/groups",
+    },
+    {
+      name: "Users",
+      icon: <Users className="h-6 w-6" />,
+      path: "/dashboard/users",
     },
   ];
 
@@ -130,7 +143,7 @@ const SideNav = ({ onExpand }: { onExpand: (expanded: boolean) => void }) => {
               >
                 <Link
                   className={`flex items-center gap-3 rounded-lg p-2 text-muted-foreground transition-all ${
-                    path === menu.path
+                    path.startsWith(menu.path)
                       ? "bg-accent-foreground text-secondary"
                       : isExpanded
                       ? "hover:text-primary hover:bg-accent/50"
@@ -181,8 +194,13 @@ const SideNav = ({ onExpand }: { onExpand: (expanded: boolean) => void }) => {
                         exit={{ opacity: 0, width: 0 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <Blend className="h-4 w-4" />
-                        Suhhhhh
+                        <Link
+                          href="/dashboard/admin"
+                          className="flex items-center gap-4"
+                        >
+                          <Blend className="h-4 w-4" />
+                          Suhhhhh
+                        </Link>
                       </motion.span>
                     )}
                   </AnimatePresence>

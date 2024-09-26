@@ -1,6 +1,7 @@
 export interface Role {
   metadata: RoleMetaData,
-  rules: RoleRules[]
+  rules: RoleRules[],
+  active: boolean
 }
 
 interface RoleMetaData {

@@ -32,9 +32,9 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import SideNav from "./_components/SideNav";
 import { useTheme } from "next-themes";
-import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 export const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -50,7 +50,14 @@ const Layout = ({
 }>) => {
   const { setTheme } = useTheme();
   const [isSideNavExpanded, setIsSideNavExpanded] = useState(false);
-  const pathname = usePathname();
+  const pathname = usePathname(); 
+  const router = useRouter();
+  
+  useEffect(() => {
+    if (pathname === '/dashboard') {
+      router.push('/dashboard/roles');
+    }
+  }, [pathname, router]);
 
   return (
     <motion.div
@@ -152,16 +159,14 @@ const Layout = ({
             </SheetContent>
           </Sheet>
           <div className="w-full flex-1">
-            {/* <form>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search products..."
-                  className="w-full appearance-none bg-background pl-8 shadow-none md:w-2/3 lg:w-1/3"
-                />
-              </div>
-            </form> */}
+            <nav className="hidden flex-col gap-6 md:flex md:flex-row md:items-center md:gap-4 md:text-sm lg:gap-6">
+              <Link
+                href="#"
+                className="text-foreground transition-colors hover:text-foreground"
+              >
+                Analytics
+              </Link>
+            </nav>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -201,7 +206,7 @@ const Layout = ({
           </DropdownMenu>
         </motion.header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-          <div className="flex flex-1 rounded-lg border border-dashed shadow-sm">
+          <div className="flex flex-1">
             {/* <div className="flex flex-col items-center gap-1 text-center"> */}
             {children}
           </div>

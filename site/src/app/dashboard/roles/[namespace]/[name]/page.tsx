@@ -349,54 +349,6 @@ const RoleDetailsPage = ({
     document.body.removeChild(link);
   };
 
-  const PermissionImpactAnalysis = ({ rules }: { rules: Rules[] }) => {
-    const analyzeImpact = (rules: Rules[]) => {
-      let impact = {
-        highRisk: 0,
-        mediumRisk: 0,
-        lowRisk: 0,
-      };
-
-      rules.forEach((rule) => {
-        if (rule.verbs.includes("Delete") || rule.verbs.includes("Update")) {
-          impact.highRisk++;
-        } else if (rule.verbs.includes("Create")) {
-          impact.mediumRisk++;
-        } else {
-          impact.lowRisk++;
-        }
-      });
-
-      return impact;
-    };
-
-    const impact = analyzeImpact(rules);
-
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Permission Impact Analysis</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span>High Risk Permissions:</span>
-              <Badge variant="destructive">{impact.highRisk}</Badge>
-            </div>
-            <div className="flex justify-between">
-              <span>Medium Risk Permissions:</span>
-              <Badge variant="destructive">{impact.mediumRisk}</Badge>
-            </div>
-            <div className="flex justify-between">
-              <span>Low Risk Permissions:</span>
-              <Badge variant="secondary">{impact.lowRisk}</Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
   const DuplicateRoleDialog = ({ isOpen, onClose, onDuplicate }) => {
     const [newNamespace, setNewNamespace] = useState("");
     const [newName, setNewName] = useState("");

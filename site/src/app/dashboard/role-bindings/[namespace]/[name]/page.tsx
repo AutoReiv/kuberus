@@ -286,7 +286,8 @@ const RoleBindingDetailsPage = ({
                 </Card>
               </TabsContent>
               <TabsContent value="graph">
-                <RoleBindingForceGraph roleBinding={roleBindingDetails} />
+                {/* <RoleBindingForceGraph roleBinding={roleBindingDetails} /> */}
+
               </TabsContent>
             </Tabs>
           </div>
