@@ -3,6 +3,7 @@ package rbac
 import (
 	"context"
 	"net/http"
+	"rbac/pkg/auth"
 	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
@@ -15,8 +16,20 @@ import (
 func UserRolesHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		username := c.Get("username").(string)
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
 
-		// Fetch RoleBindings and ClusterRoleBindings for the user
+		if !isAdmin && !auth.HasPermission(username, "view_user_roles") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view user roles")
+		}
+
+		userName := c.QueryParam("userName")
+		if userName == "" {
+			return echo.NewHTTPError(http.StatusBadRequest, "User name is required")
+		}
+
 		roleBindings, err := clientset.RbacV1().RoleBindings("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing role bindings", err, "Failed to list role bindings")
@@ -27,7 +40,7 @@ func UserRolesHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing cluster role bindings", err, "Failed to list cluster role bindings")
 		}
 
-		userRoles := extractUserRoles(username, roleBindings.Items, clusterRoleBindings.Items)
+		userRoles := extractUserRoles(userName, roleBindings.Items, clusterRoleBindings.Items)
 		return c.JSON(http.StatusOK, userRoles)
 	}
 }

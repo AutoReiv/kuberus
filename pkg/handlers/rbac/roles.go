@@ -190,14 +190,18 @@ type RoleDetailsResponse struct {
 func RoleDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		username := c.Get("username").(string)
-		if !auth.HasPermission(username, "view_role_details") {
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
+
+		if !isAdmin && !auth.HasPermission(username, "view_role_details") {
 			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view role details")
 		}
 
 		return getRoleDetails(c, clientset)
 	}
 }
-
 // getRoleDetails fetches detailed information about a specific role.
 func getRoleDetails(c echo.Context, clientset *kubernetes.Clientset) error {
 	roleName := c.QueryParam("roleName")
@@ -235,7 +239,6 @@ func getRoleDetails(c echo.Context, clientset *kubernetes.Clientset) error {
 	utils.Logger.Info("Fetched role details", zap.String("roleName", roleName), zap.String("namespace", namespace))
 	return c.JSON(http.StatusOK, response)
 }
-
 // filterRoleBindings filters role bindings associated with a specific role.
 func filterRoleBindings(roleBindings []rbacv1.RoleBinding, roleName string) []rbacv1.RoleBinding {
 	var associatedBindings []rbacv1.RoleBinding

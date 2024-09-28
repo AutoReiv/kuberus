@@ -117,7 +117,12 @@ func handleDeleteClusterRoleBinding(c echo.Context, clientset *kubernetes.Client
 func ClusterRoleBindingDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		username := c.Get("username").(string)
-		if !auth.HasPermission(username, "view_clusterrolebinding_details") {
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
+
+		if !isAdmin && !auth.HasPermission(username, "view_clusterrolebinding_details") {
 			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view cluster role binding details")
 		}
 

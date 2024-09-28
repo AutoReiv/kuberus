@@ -116,7 +116,12 @@ func handleDeleteClusterRole(c echo.Context, clientset *kubernetes.Clientset) er
 func ClusterRoleDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		username := c.Get("username").(string)
-		if !auth.HasPermission(username, "view_clusterrole_details") {
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
+
+		if !isAdmin && !auth.HasPermission(username, "view_clusterrole_details") {
 			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view cluster role details")
 		}
 
