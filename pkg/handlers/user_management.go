@@ -244,13 +244,7 @@ func handleDeleteUser(c echo.Context) error {
 
 }
 
-// handleListUsers handles the retrieval of user accounts
 func handleListUsers(c echo.Context) error {
-	username := c.Get("username").(string)
-	if !auth.HasPermission(username, "list_users") {
-		return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to list users")
-	}
-
 	users, err := auth.GetAllUsers()
 	if err != nil {
 		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error retrieving users", err, "Failed to retrieve users")

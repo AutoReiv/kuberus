@@ -27,7 +27,7 @@ func GetAuditLogsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
 	}
 
-	if !isAdmin && !auth.HasPermission(username, "view_audit_logs") {
+	if (!isAdmin && !auth.HasPermission(username, "view_audit_logs")) {
 		return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view audit logs")
 	}
 
