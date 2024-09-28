@@ -3,6 +3,8 @@ package rbac
 import (
 	"context"
 	"net/http"
+	"rbac/pkg/auth"
+	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -21,24 +23,29 @@ type GroupDetailsResponse struct {
 // GroupDetailsHandler handles requests for detailed information about a specific group.
 func GroupDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "view_group_details") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view group details")
+		}
+
 		groupName := c.QueryParam("groupName")
 		if groupName == "" {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Group name is required"})
+			return echo.NewHTTPError(http.StatusBadRequest, "Group name is required")
 		}
 
 		roleBindings, err := clientset.RbacV1().RoleBindings("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing role bindings", err, "Failed to list role bindings")
 		}
 
 		clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing cluster role bindings", err, "Failed to list cluster role bindings")
 		}
 
 		clusterRoles, err := clientset.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing cluster roles", err, "Failed to list cluster roles")
 		}
 
 		groupDetails := extractGroupDetails(groupName, roleBindings.Items, clusterRoleBindings.Items, clusterRoles.Items)

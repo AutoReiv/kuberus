@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"rbac/pkg/auth"
 	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
@@ -16,6 +17,11 @@ import (
 // RolesHandler handles role-related requests.
 func RolesHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "manage_roles") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to manage roles")
+		}
+
 		namespace := c.QueryParam("namespace")
 		if namespace == "" {
 			namespace = "default"
@@ -114,19 +120,16 @@ func listAllNamespacesRoles(c echo.Context, clientset *kubernetes.Clientset) err
 func handleCreateRole(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
 	var role rbacv1.Role
 	if err := c.Bind(&role); err != nil {
-		utils.Logger.Error("Failed to decode request body", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Failed to decode request body: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to decode request body", err, "Failed to bind create role request")
 	}
 
 	if err := validateRole(&role); err != nil {
-		utils.Logger.Error("Invalid role", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid role: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid role", err, "Invalid role data")
 	}
 
 	createdRole, err := clientset.RbacV1().Roles(namespace).Create(context.TODO(), &role, metav1.CreateOptions{})
 	if err != nil {
-		utils.Logger.Error("Failed to create role", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create role: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to create role", err, "Failed to create role in Kubernetes")
 	}
 
 	utils.Logger.Info("Role created successfully", zap.String("roleName", role.Name), zap.String("namespace", namespace))
@@ -138,19 +141,16 @@ func handleCreateRole(c echo.Context, clientset *kubernetes.Clientset, namespace
 func handleUpdateRole(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
 	var role rbacv1.Role
 	if err := c.Bind(&role); err != nil {
-		utils.Logger.Error("Failed to decode request body", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Failed to decode request body: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to decode request body", err, "Failed to bind update role request")
 	}
 
 	if err := validateRole(&role); err != nil {
-		utils.Logger.Error("Invalid role", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid role: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid role", err, "Invalid role data")
 	}
 
 	updatedRole, err := clientset.RbacV1().Roles(namespace).Update(context.TODO(), &role, metav1.UpdateOptions{})
 	if err != nil {
-		utils.Logger.Error("Failed to update role", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update role: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to update role", err, "Failed to update role in Kubernetes")
 	}
 
 	utils.Logger.Info("Role updated successfully", zap.String("roleName", role.Name), zap.String("namespace", namespace))
@@ -167,8 +167,7 @@ func handleDeleteRole(c echo.Context, clientset *kubernetes.Clientset, namespace
 
 	err := clientset.RbacV1().Roles(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
-		utils.Logger.Error("Failed to delete role", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete role: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to delete role", err, "Failed to delete role in Kubernetes")
 	}
 
 	utils.Logger.Info("Role deleted successfully", zap.String("roleName", name), zap.String("namespace", namespace))
@@ -186,6 +185,11 @@ type RoleDetailsResponse struct {
 // RoleDetailsHandler handles fetching detailed information about a specific role.
 func RoleDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "view_role_details") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view role details")
+		}
+
 		return getRoleDetails(c, clientset)
 	}
 }
@@ -252,36 +256,36 @@ func validateRole(role *rbacv1.Role) error {
 
 // EnsureReadOnlyRole ensures that the read-only role exists in the specified namespace.
 func EnsureReadOnlyRole(clientset *kubernetes.Clientset, namespace string) error {
-    roleName := "read-only"
+	roleName := "read-only"
 
-    // Check if the role already exists
-    _, err := clientset.RbacV1().Roles(namespace).Get(context.TODO(), roleName, metav1.GetOptions{})
-    if err == nil {
-        // Role already exists, no need to create it
-        return nil
-    }
+	// Check if the role already exists
+	_, err := clientset.RbacV1().Roles(namespace).Get(context.TODO(), roleName, metav1.GetOptions{})
+	if err == nil {
+		// Role already exists, no need to create it
+		return nil
+	}
 
-    // Define the read-only role
-    readOnlyRole := &rbacv1.Role{
-        ObjectMeta: metav1.ObjectMeta{
-            Name: roleName,
-        },
-        Rules: []rbacv1.PolicyRule{
-            {
-                APIGroups: []string{""},
-                Resources: []string{"pods", "services", "deployments"},
-                Verbs:     []string{"get", "list", "watch"},
-            },
-        },
-    }
+	// Define the read-only role
+	readOnlyRole := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: roleName,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"pods", "services", "deployments"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+		},
+	}
 
-    // Create the read-only role
-    _, err = clientset.RbacV1().Roles(namespace).Create(context.TODO(), readOnlyRole, metav1.CreateOptions{})
-    if err != nil {
-        utils.Logger.Error("Failed to create read-only role", zap.Error(err))
-        return err
-    }
+	// Create the read-only role
+	_, err = clientset.RbacV1().Roles(namespace).Create(context.TODO(), readOnlyRole, metav1.CreateOptions{})
+	if err != nil {
+		utils.Logger.Error("Failed to create read-only role", zap.Error(err))
+		return err
+	}
 
-    utils.Logger.Info("Read-only role created successfully", zap.String("roleName", roleName), zap.String("namespace", namespace))
-    return nil
+	utils.Logger.Info("Read-only role created successfully", zap.String("roleName", roleName), zap.String("namespace", namespace))
+	return nil
 }

@@ -4,6 +4,9 @@ import (
 	"context"
 	"net/http"
 
+	"rbac/pkg/auth"
+	"rbac/pkg/utils"
+
 	"github.com/labstack/echo/v4"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,24 +24,29 @@ type ServiceAccountDetailsResponse struct {
 // ServiceAccountDetailsHandler handles requests for detailed information about a specific service account.
 func ServiceAccountDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "view_serviceaccount_details") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view service account details")
+		}
+
 		serviceAccountName := c.QueryParam("serviceAccountName")
 		if serviceAccountName == "" {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Service account name is required"})
+			return echo.NewHTTPError(http.StatusBadRequest, "Service account name is required")
 		}
 
 		roleBindings, err := clientset.RbacV1().RoleBindings("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing role bindings", err, "Failed to list role bindings")
 		}
 
 		clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing cluster role bindings", err, "Failed to list cluster role bindings")
 		}
 
 		clusterRoles, err := clientset.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing cluster roles", err, "Failed to list cluster roles")
 		}
 
 		serviceAccountDetails := extractServiceAccountDetails(serviceAccountName, roleBindings.Items, clusterRoleBindings.Items, clusterRoles.Items)

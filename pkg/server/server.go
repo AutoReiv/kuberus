@@ -70,60 +70,60 @@ func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Confi
 	// Protected API routes
 	api := e.Group("/api", middleware.JWTMiddleware())
 	// Namespace routes
-	api.GET("/namespaces", rbac.NamespacesHandler(clientset))
-	api.POST("/namespaces", rbac.NamespacesHandler(clientset))
-	api.DELETE("/namespaces", rbac.NamespacesHandler(clientset))
+	api.GET("/namespaces", middleware.RBACMiddleware("list_namespaces")(rbac.NamespacesHandler(clientset)))
+	api.POST("/namespaces", middleware.RBACMiddleware("create_namespace")(rbac.NamespacesHandler(clientset)))
+	api.DELETE("/namespaces", middleware.RBACMiddleware("delete_namespace")(rbac.NamespacesHandler(clientset)))
 
 	// Role routes
-	api.GET("/roles", rbac.RolesHandler(clientset))
-	api.POST("/roles", rbac.RolesHandler(clientset))
-	api.PUT("/roles", rbac.RolesHandler(clientset))
-	api.DELETE("/roles", rbac.RolesHandler(clientset))
-	api.GET("/roles/details", rbac.RoleDetailsHandler(clientset))
+	api.GET("/roles", middleware.RBACMiddleware("list_roles")(rbac.RolesHandler(clientset)))
+	api.POST("/roles", middleware.RBACMiddleware("create_role")(rbac.RolesHandler(clientset)))
+	api.PUT("/roles", middleware.RBACMiddleware("update_role")(rbac.RolesHandler(clientset)))
+	api.DELETE("/roles", middleware.RBACMiddleware("delete_role")(rbac.RolesHandler(clientset)))
+	api.GET("/roles/details", middleware.RBACMiddleware("view_role_details")(rbac.RoleDetailsHandler(clientset)))
 
 	// Role bindings routes
-	api.GET("/rolebindings", rbac.RoleBindingsHandler(clientset))
-	api.POST("/rolebindings", rbac.RoleBindingsHandler(clientset))
-	api.PUT("/rolebindings", rbac.RoleBindingsHandler(clientset))
-	api.DELETE("/rolebindings", rbac.RoleBindingsHandler(clientset))
-	api.GET("/rolebinding/details", rbac.RoleBindingDetailsHandler(clientset))
+	api.GET("/rolebindings", middleware.RBACMiddleware("list_rolebindings")(rbac.RoleBindingsHandler(clientset)))
+	api.POST("/rolebindings", middleware.RBACMiddleware("create_rolebinding")(rbac.RoleBindingsHandler(clientset)))
+	api.PUT("/rolebindings", middleware.RBACMiddleware("update_rolebinding")(rbac.RoleBindingsHandler(clientset)))
+	api.DELETE("/rolebindings", middleware.RBACMiddleware("delete_rolebinding")(rbac.RoleBindingsHandler(clientset)))
+	api.GET("/rolebinding/details", middleware.RBACMiddleware("view_rolebinding_details")(rbac.RoleBindingDetailsHandler(clientset)))
 
 	// Cluster role routes
-	api.GET("/clusterroles", rbac.ClusterRolesHandler(clientset))
-	api.POST("/clusterroles", rbac.ClusterRolesHandler(clientset))
-	api.PUT("/clusterroles", rbac.ClusterRolesHandler(clientset))
-	api.DELETE("/clusterroles", rbac.ClusterRolesHandler(clientset))
-	api.GET("/clusterroles/details", rbac.ClusterRoleDetailsHandler(clientset))
+	api.GET("/clusterroles", middleware.RBACMiddleware("list_clusterroles")(rbac.ClusterRolesHandler(clientset)))
+	api.POST("/clusterroles", middleware.RBACMiddleware("create_clusterrole")(rbac.ClusterRolesHandler(clientset)))
+	api.PUT("/clusterroles", middleware.RBACMiddleware("update_clusterrole")(rbac.ClusterRolesHandler(clientset)))
+	api.DELETE("/clusterroles", middleware.RBACMiddleware("delete_clusterrole")(rbac.ClusterRolesHandler(clientset)))
+	api.GET("/clusterroles/details", middleware.RBACMiddleware("view_clusterrole_details")(rbac.ClusterRoleDetailsHandler(clientset)))
 
 	// Cluster role bindings routes
-	api.GET("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
-	api.POST("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
-	api.PUT("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
-	api.DELETE("/clusterrolebindings", rbac.ClusterRoleBindingsHandler(clientset))
-	api.GET("/clusterrolebinding/details", rbac.ClusterRoleBindingDetailsHandler(clientset))
+	api.GET("/clusterrolebindings", middleware.RBACMiddleware("list_clusterrolebindings")(rbac.ClusterRoleBindingsHandler(clientset)))
+	api.POST("/clusterrolebindings", middleware.RBACMiddleware("create_clusterrolebinding")(rbac.ClusterRoleBindingsHandler(clientset)))
+	api.PUT("/clusterrolebindings", middleware.RBACMiddleware("update_clusterrolebinding")(rbac.ClusterRoleBindingsHandler(clientset)))
+	api.DELETE("/clusterrolebindings", middleware.RBACMiddleware("delete_clusterrolebinding")(rbac.ClusterRoleBindingsHandler(clientset)))
+	api.GET("/clusterrolebinding/details", middleware.RBACMiddleware("view_clusterrolebinding_details")(rbac.ClusterRoleBindingDetailsHandler(clientset)))
 
 	// Resource routes
-	api.GET("/resources", rbac.APIResourcesHandler(clientset))
+	api.GET("/resources", middleware.RBACMiddleware("list_resources")(rbac.APIResourcesHandler(clientset)))
 
 	// Account routes
-	api.GET("/serviceaccounts", rbac.ServiceAccountsHandler(clientset))
-	api.POST("/serviceaccounts", rbac.ServiceAccountsHandler(clientset))
-	api.DELETE("/serviceaccounts", rbac.ServiceAccountsHandler(clientset))
-	api.GET("/serviceaccount-details", rbac.ServiceAccountDetailsHandler(clientset))
+	api.GET("/serviceaccounts", middleware.RBACMiddleware("list_serviceaccounts")(rbac.ServiceAccountsHandler(clientset)))
+	api.POST("/serviceaccounts", middleware.RBACMiddleware("create_serviceaccount")(rbac.ServiceAccountsHandler(clientset)))
+	api.DELETE("/serviceaccounts", middleware.RBACMiddleware("delete_serviceaccount")(rbac.ServiceAccountsHandler(clientset)))
+	api.GET("/serviceaccount-details", middleware.RBACMiddleware("view_serviceaccount_details")(rbac.ServiceAccountDetailsHandler(clientset)))
 
 	// User routes
-	api.GET("/users", rbac.UsersHandler(clientset))
-	api.GET("/user-details", rbac.UserDetailsHandler(clientset))
+	api.GET("/users", middleware.RBACMiddleware("list_users")(rbac.UsersHandler(clientset)))
+	api.GET("/user-details", middleware.RBACMiddleware("view_user_details")(rbac.UserDetailsHandler(clientset)))
 
 	// Group routes
-	api.GET("/groups", rbac.GroupsHandler(clientset))
-	api.GET("/group-details", rbac.GroupDetailsHandler(clientset))
+	api.GET("/groups", middleware.RBACMiddleware("list_groups")(rbac.GroupsHandler(clientset)))
+	api.GET("/group-details", middleware.RBACMiddleware("view_group_details")(rbac.GroupDetailsHandler(clientset)))
 
 	// User roles route
-	api.GET("/user-roles", middleware.JWTMiddleware()(rbac.UserRolesHandler(clientset)))
+	api.GET("/user-roles", middleware.RBACMiddleware("view_user_roles")(rbac.UserRolesHandler(clientset)))
 
 	// Audit logs route
-	api.GET("/audit-logs", handlers.GetAuditLogsHandler)
+	api.GET("/audit-logs", middleware.RBACMiddleware("view_audit_logs")(handlers.GetAuditLogsHandler))
 
 	// Health check endpoint
 	e.GET("/health", func(c echo.Context) error {
@@ -136,5 +136,5 @@ func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Confi
 	})
 
 	// Simulation route
-	api.POST("/simulate", rbac.SimulateHandler(clientset))
+	api.POST("/simulate", middleware.RBACMiddleware("simulate")(rbac.SimulateHandler(clientset)))
 }

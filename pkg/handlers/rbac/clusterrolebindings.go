@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"rbac/pkg/auth"
 	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
@@ -36,8 +37,7 @@ func ClusterRoleBindingsHandler(clientset *kubernetes.Clientset) echo.HandlerFun
 func handleListClusterRoleBindings(c echo.Context, clientset *kubernetes.Clientset) error {
 	clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		utils.Logger.Error("Error listing cluster role bindings", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing cluster role bindings", err, "Failed to list cluster role bindings")
 	}
 	utils.Logger.Info("Listed cluster role bindings")
 	return c.JSON(http.StatusOK, clusterRoleBindings.Items)
@@ -47,19 +47,16 @@ func handleListClusterRoleBindings(c echo.Context, clientset *kubernetes.Clients
 func handleCreateClusterRoleBinding(c echo.Context, clientset *kubernetes.Clientset) error {
 	var clusterRoleBinding rbacv1.ClusterRoleBinding
 	if err := c.Bind(&clusterRoleBinding); err != nil {
-		utils.Logger.Error("Failed to decode request body", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Failed to decode request body: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to decode request body", err, "Failed to bind create cluster role binding request")
 	}
 
 	if err := validateClusterRoleBinding(&clusterRoleBinding); err != nil {
-		utils.Logger.Error("Invalid cluster role binding", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, "Invalid cluster role binding: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid cluster role binding", err, "Invalid cluster role binding data")
 	}
 
 	createdClusterRoleBinding, err := clientset.RbacV1().ClusterRoleBindings().Create(context.TODO(), &clusterRoleBinding, metav1.CreateOptions{})
 	if err != nil {
-		utils.Logger.Error("Failed to create cluster role binding", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create cluster role binding: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to create cluster role binding", err, "Failed to create cluster role binding in Kubernetes")
 	}
 
 	utils.Logger.Info("Cluster role binding created successfully", zap.String("clusterRoleBindingName", clusterRoleBinding.Name))
@@ -71,19 +68,16 @@ func handleCreateClusterRoleBinding(c echo.Context, clientset *kubernetes.Client
 func handleUpdateClusterRoleBinding(c echo.Context, clientset *kubernetes.Clientset) error {
 	var clusterRoleBinding rbacv1.ClusterRoleBinding
 	if err := c.Bind(&clusterRoleBinding); err != nil {
-		utils.Logger.Error("Failed to decode request body", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Failed to decode request body: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to decode request body", err, "Failed to bind update cluster role binding request")
 	}
 
 	if err := validateClusterRoleBinding(&clusterRoleBinding); err != nil {
-		utils.Logger.Error("Invalid cluster role binding", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, "Invalid cluster role binding: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid cluster role binding", err, "Invalid cluster role binding data")
 	}
 
 	updatedClusterRoleBinding, err := clientset.RbacV1().ClusterRoleBindings().Update(context.TODO(), &clusterRoleBinding, metav1.UpdateOptions{})
 	if err != nil {
-		utils.Logger.Error("Failed to update cluster role binding", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update cluster role binding: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to update cluster role binding", err, "Failed to update cluster role binding in Kubernetes")
 	}
 
 	utils.Logger.Info("Cluster role binding updated successfully", zap.String("clusterRoleBindingName", clusterRoleBinding.Name))
@@ -96,13 +90,12 @@ func handleDeleteClusterRoleBinding(c echo.Context, clientset *kubernetes.Client
 	name := c.QueryParam("name")
 	if name == "" {
 		utils.Logger.Warn("Cluster role binding name is required")
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Cluster role binding name is required"})
+		return echo.NewHTTPError(http.StatusBadRequest, "Cluster role binding name is required")
 	}
 
 	err := clientset.RbacV1().ClusterRoleBindings().Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
-		utils.Logger.Error("Failed to delete cluster role binding", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete cluster role binding: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to delete cluster role binding", err, "Failed to delete cluster role binding in Kubernetes")
 	}
 
 	utils.Logger.Info("Cluster role binding deleted successfully", zap.String("clusterRoleBindingName", name))
@@ -113,15 +106,19 @@ func handleDeleteClusterRoleBinding(c echo.Context, clientset *kubernetes.Client
 // ClusterRoleBindingDetailsHandler handles fetching detailed information about a specific cluster role binding.
 func ClusterRoleBindingDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "view_clusterrolebinding_details") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view cluster role binding details")
+		}
+
 		clusterRoleBindingName := c.QueryParam("name")
 		if clusterRoleBindingName == "" {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Cluster role binding name is required"})
+			return echo.NewHTTPError(http.StatusBadRequest, "Cluster role binding name is required")
 		}
 
 		clusterRoleBinding, err := clientset.RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterRoleBindingName, metav1.GetOptions{})
 		if err != nil {
-			utils.Logger.Error("Error fetching cluster role binding details", zap.Error(err))
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error fetching cluster role binding details", err, "Failed to fetch cluster role binding details")
 		}
 
 		utils.Logger.Info("Fetched cluster role binding details", zap.String("clusterRoleBindingName", clusterRoleBindingName))

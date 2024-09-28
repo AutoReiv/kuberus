@@ -33,56 +33,51 @@ func SimulateHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		var req SimulateRequest
 		if err := c.Bind(&req); err != nil {
-			utils.Logger.Error("Invalid request payload", zap.Error(err))
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
+			return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid request payload", err, "Failed to bind simulate request")
 		}
 
 		utils.Logger.Info("Simulation request received", zap.String("username", req.Username), zap.String("roleName", req.RoleName), zap.String("namespace", req.Namespace))
 
 		// Validate inputs
 		if !isValidUsername(req.Username) {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid username"})
+			return echo.NewHTTPError(http.StatusBadRequest, "Invalid username")
 		}
 		for _, action := range req.Actions {
 			if !isValidAction(action) {
-				return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid action: " + action})
+				return echo.NewHTTPError(http.StatusBadRequest, "Invalid action: "+action)
 			}
 		}
 		for _, resource := range req.Resources {
 			if !isValidResource(resource, clientset) {
-				return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid resource: " + resource})
+				return echo.NewHTTPError(http.StatusBadRequest, "Invalid resource: "+resource)
 			}
 		}
 
 		// Fetch the user's current roles and role bindings
 		roleBindings, err := clientset.RbacV1().RoleBindings(req.Namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			utils.Logger.Error("Error fetching role bindings", zap.Error(err))
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error fetching role bindings: " + err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error fetching role bindings", err, "Failed to fetch role bindings")
 		}
 
 		clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			utils.Logger.Error("Error fetching cluster role bindings", zap.Error(err))
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error fetching cluster role bindings: " + err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error fetching cluster role bindings", err, "Failed to fetch cluster role bindings")
 		}
 
 		// Fetch all roles and cluster roles
 		roles, err := clientset.RbacV1().Roles(req.Namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			utils.Logger.Error("Error fetching roles", zap.Error(err))
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error fetching roles: " + err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error fetching roles", err, "Failed to fetch roles")
 		}
 
 		clusterRoles, err := clientset.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			utils.Logger.Error("Error fetching cluster roles", zap.Error(err))
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error fetching cluster roles: " + err.Error()})
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error fetching cluster roles", err, "Failed to fetch cluster roles")
 		}
 
 		// Validate role name
 		if !isValidRoleName(req.RoleName, roles.Items, clusterRoles.Items) {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid role name"})
+			return echo.NewHTTPError(http.StatusBadRequest, "Invalid role name")
 		}
 
 		// Simulate the role assignment

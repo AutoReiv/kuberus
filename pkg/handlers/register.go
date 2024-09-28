@@ -25,14 +25,13 @@ type RegisterResponse struct {
 func RegisterHandler(c echo.Context) error {
 	var req RegisterRequest
 	if err := c.Bind(&req); err != nil {
-		utils.Logger.Error("Invalid request payload", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid request payload", err, "Failed to bind register request")
 	}
 
 	// Ensure Password and PasswordConfirm match
 	if req.Password != req.PasswordConfirm {
 		utils.Logger.Warn("Passwords do not match")
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Passwords do not match"})
+		return echo.NewHTTPError(http.StatusBadRequest, "Passwords do not match")
 	}
 
 	// Sanitize user input
@@ -42,13 +41,12 @@ func RegisterHandler(c echo.Context) error {
 	// Validate password strength
 	if !utils.IsStrongPassword(password) {
 		utils.Logger.Warn("Password does not meet strength requirements")
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Password does not meet strength requirements"})
+		return echo.NewHTTPError(http.StatusBadRequest, "Password does not meet strength requirements")
 	}
 
 	// Create user using the user management handler logic
 	if err := auth.CreateUser(username, password, "admin"); err != nil {
-		utils.Logger.Error("Error creating user", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error creating user: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error creating user", err, "Failed to create user account")
 	}
 
 	utils.Logger.Info("User account created successfully", zap.String("username", username))

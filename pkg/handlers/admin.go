@@ -23,10 +23,14 @@ func CreateAdminHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusMethodNotAllowed, "Method not allowed")
 	}
 
+	username := c.Get("username").(string)
+	if !auth.HasPermission(username, "create_admin") {
+		return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to create an admin")
+	}
+
 	var req CreateAdminRequest
 	if err := c.Bind(&req); err != nil {
-		utils.Logger.Error("Invalid request payload", zap.Error(err))
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid request payload", err, "Failed to bind create admin request")
 	}
 
 	// Ensure Password and PasswordConfirm match
@@ -36,7 +40,7 @@ func CreateAdminHandler(c echo.Context) error {
 	}
 
 	// Sanitize user input
-	username := utils.SanitizeInput(req.Username)
+	username = utils.SanitizeInput(req.Username)
 	password := utils.SanitizeInput(req.Password)
 
 	// Validate password strength
@@ -48,16 +52,14 @@ func CreateAdminHandler(c echo.Context) error {
 	// Hash the password
 	hashedPassword, err := auth.HashPassword(password)
 	if err != nil {
-		utils.Logger.Error("Error hashing password", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Error hashing password: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error hashing password", err, "Failed to hash password")
 	}
 
 	// Check if an admin account already exists
 	var adminExists bool
 	err = db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username = ?)", username).Scan(&adminExists)
 	if err != nil {
-		utils.Logger.Error("Error checking admin existence", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Error checking admin existence: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error checking admin existence", err, "Failed to check if admin exists")
 	}
 
 	if adminExists {
@@ -68,8 +70,7 @@ func CreateAdminHandler(c echo.Context) error {
 	// Store the admin account information
 	_, err = db.DB.Exec("INSERT INTO users (username, password, source, is_admin) VALUES (?, ?, 'internal', true)", username, hashedPassword)
 	if err != nil {
-		utils.Logger.Error("Error creating admin account", zap.Error(err))
-		return echo.NewHTTPError(http.StatusInternalServerError, "Error creating admin account: "+err.Error())
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error creating admin account", err, "Failed to create admin account")
 	}
 
 	utils.Logger.Info("Admin account created successfully", zap.String("username", username))

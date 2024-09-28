@@ -32,13 +32,11 @@ func SetOIDCConfigHandler(c echo.Context) error {
 
 	var config auth.OIDCConfig
 	if err := c.Bind(&config); err != nil {
-		utils.Logger.Error("Invalid request payload", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid request payload", err, "Failed to bind OIDC config request")
 	}
 
 	if err := auth.SetOIDCConfig(&config); err != nil {
-		utils.Logger.Error("Failed to set OIDC configuration", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to set OIDC configuration: " + err.Error()})
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to set OIDC configuration", err, "Failed to set OIDC configuration")
 	}
 
 	// Initialize OIDC provider and verifier
@@ -70,67 +68,60 @@ func OIDCAuthHandler(c echo.Context) error {
 
 // OIDCCallbackHandler handles the OIDC callback.
 func OIDCCallbackHandler(c echo.Context) error {
-    if c.Request().Method != http.MethodGet {
-        return c.JSON(http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
-    }
+	if c.Request().Method != http.MethodGet {
+		return c.JSON(http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+	}
 
-    code := c.QueryParam("code")
-    if code == "" {
-        utils.Logger.Error("Invalid request: missing code parameter")
-        return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
-    }
+	code := c.QueryParam("code")
+	if code == "" {
+		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid request", nil, "Missing code parameter in OIDC callback")
+	}
 
-    utils.Logger.Info("Received authorization code", zap.String("code", code))
+	utils.Logger.Info("Received authorization code", zap.String("code", code))
 
-    oauth2Token, err := oauth2Config.Exchange(context.Background(), code)
-    if err != nil {
-        utils.Logger.Error("Failed to exchange token", zap.Error(err))
-        utils.LogAuditEvent(c.Request(), "oidc_callback_failed", "N/A", "N/A")
-        return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication failed"})
-    }
+	oauth2Token, err := oauth2Config.Exchange(context.Background(), code)
+	if err != nil {
+		utils.LogAuditEvent(c.Request(), "oidc_callback_failed", "N/A", "N/A")
+		return utils.LogAndRespondError(c, http.StatusUnauthorized, "Authentication failed", err, "Failed to exchange token in OIDC callback")
+	}
 
-    rawIDToken, ok := oauth2Token.Extra("id_token").(string)
-    if !ok {
-        utils.Logger.Error("Failed to retrieve ID token from OAuth2 token")
-        utils.LogAuditEvent(c.Request(), "oidc_callback_failed", "N/A", "N/A")
-        return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication failed"})
-    }
+	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
+	if !ok {
+		utils.LogAuditEvent(c.Request(), "oidc_callback_failed", "N/A", "N/A")
+		return utils.LogAndRespondError(c, http.StatusUnauthorized, "Authentication failed", nil, "Failed to retrieve ID token from OAuth2 token")
+	}
 
-    idToken, err := verifier.Verify(context.Background(), rawIDToken)
-    if err != nil {
-        utils.Logger.Error("Failed to verify ID token", zap.Error(err))
-        utils.LogAuditEvent(c.Request(), "oidc_callback_failed", "N/A", "N/A")
-        return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication failed"})
-    }
+	idToken, err := verifier.Verify(context.Background(), rawIDToken)
+	if err != nil {
+		utils.LogAuditEvent(c.Request(), "oidc_callback_failed", "N/A", "N/A")
+		return utils.LogAndRespondError(c, http.StatusUnauthorized, "Authentication failed", err, "Failed to verify ID token in OIDC callback")
+	}
 
-    var claims struct {
-        Email string `json:"email"`
-    }
-    if err := idToken.Claims(&claims); err != nil {
-        utils.Logger.Error("Failed to parse ID token claims", zap.Error(err))
-        utils.LogAuditEvent(c.Request(), "oidc_callback_failed", "N/A", "N/A")
-        return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication failed"})
-    }
+	var claims struct {
+		Email string `json:"email"`
+	}
+	if err := idToken.Claims(&claims); err != nil {
+		utils.LogAuditEvent(c.Request(), "oidc_callback_failed", "N/A", "N/A")
+		return utils.LogAndRespondError(c, http.StatusUnauthorized, "Authentication failed", err, "Failed to parse ID token claims in OIDC callback")
+	}
 
-    // Store OIDC user in the database if not already present
-    if err := auth.CreateUserIfNotExists(claims.Email, "oidc"); err != nil {
-        utils.Logger.Error("Failed to store OIDC user", zap.Error(err))
-        return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to store user"})
-    }
+	// Store OIDC user in the database if not already present
+	if err := auth.CreateUserIfNotExists(claims.Email, "oidc"); err != nil {
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to store user", err, "Failed to store OIDC user in database")
+	}
 
-    // Check if the user is an admin
-    isAdmin := auth.IsAdmin(claims.Email)
+	// Check if the user is an admin
+	isAdmin := auth.IsAdmin(claims.Email)
 
-    // Generate JWT token
-    token, err := auth.GenerateJWT(claims.Email, isAdmin)
-    if err != nil {
-        utils.Logger.Error("Failed to generate JWT token", zap.Error(err))
-        return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate token"})
-    }
+	// Generate JWT token
+	token, err := auth.GenerateJWT(claims.Email, isAdmin)
+	if err != nil {
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to generate token", err, "Failed to generate JWT token in OIDC callback")
+	}
 
-    utils.Logger.Info("OIDC callback successful", zap.String("email", claims.Email))
-    utils.LogAuditEvent(c.Request(), "oidc_callback_success", claims.Email, "N/A")
-    return c.JSON(http.StatusOK, map[string]string{"token": token})
+	utils.Logger.Info("OIDC callback successful", zap.String("email", claims.Email))
+	utils.LogAuditEvent(c.Request(), "oidc_callback_success", claims.Email, "N/A")
+	return c.JSON(http.StatusOK, map[string]string{"token": token})
 }
 
 // initOIDCProvider initializes the OIDC provider and verifier.
