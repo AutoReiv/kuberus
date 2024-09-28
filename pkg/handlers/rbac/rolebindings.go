@@ -17,6 +17,16 @@ import (
 // RoleBindingsHandler handles role binding-related requests.
 func RoleBindingsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
+
+		if !isAdmin && !auth.HasPermission(username, "manage_rolebindings") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to manage role bindings")
+		}
+
 		namespace := c.QueryParam("namespace")
 		if namespace == "" {
 			namespace = "default"
@@ -36,7 +46,6 @@ func RoleBindingsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 		}
 	}
 }
-
 // handleListRoleBindings lists all role bindings in a specific namespace.
 func handleListRoleBindings(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
 	roleBindings, err := clientset.RbacV1().RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})

@@ -18,7 +18,12 @@ import (
 func RolesHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		username := c.Get("username").(string)
-		if !auth.HasPermission(username, "manage_roles") {
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
+
+		if !isAdmin && !auth.HasPermission(username, "manage_roles") {
 			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to manage roles")
 		}
 
@@ -41,7 +46,6 @@ func RolesHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 		}
 	}
 }
-
 // IsRoleActive checks if a role is active by looking for any role bindings that reference it.
 func IsRoleActive(clientset *kubernetes.Clientset, roleName, namespace string) (bool, error) {
 	// Check RoleBindings in the namespace

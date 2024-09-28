@@ -22,7 +22,12 @@ type UserSource struct {
 func UsersHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		username := c.Get("username").(string)
-		if !auth.HasPermission(username, "list_users") {
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
+
+		if (!isAdmin && !auth.HasPermission(username, "list_users")) {
 			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to list users")
 		}
 

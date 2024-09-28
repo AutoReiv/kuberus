@@ -16,6 +16,16 @@ import (
 // ClusterRolesHandler handles requests related to cluster roles.
 func ClusterRolesHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
+
+		if (!isAdmin && !auth.HasPermission(username, "manage_clusterroles")) {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to manage cluster roles")
+		}
+
 		switch c.Request().Method {
 		case http.MethodGet:
 			return handleListClusterRoles(c, clientset)
@@ -26,11 +36,10 @@ func ClusterRolesHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 		case http.MethodDelete:
 			return handleDeleteClusterRole(c, clientset)
 		default:
-			return c.JSON(http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+			return echo.NewHTTPError(http.StatusMethodNotAllowed, "Method not allowed")
 		}
 	}
 }
-
 // handleListClusterRoles lists all cluster roles.
 func handleListClusterRoles(c echo.Context, clientset *kubernetes.Clientset) error {
 	clusterRoles, err := clientset.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})

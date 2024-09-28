@@ -22,21 +22,26 @@ type AuditLog struct {
 // GetAuditLogsHandler handles the retrieval of audit logs.
 func GetAuditLogsHandler(c echo.Context) error {
 	username := c.Get("username").(string)
-	if !auth.HasPermission(username, "view_audit_logs") {
+	isAdmin, ok := c.Get("isAdmin").(bool)
+	if !ok {
+		return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+	}
+
+	if !isAdmin && !auth.HasPermission(username, "view_audit_logs") {
 		return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view audit logs")
 	}
 
-	rows, err := db.DB.Query("SELECT id, action, resource_name, namespace, timestamp, hash FROM audit_logs ORDER BY timestamp DESC")
+	rows, err := db.DB.Query("SELECT action, resource_name, namespace, timestamp, hash FROM audit_logs ORDER BY timestamp DESC")
 	if err != nil {
-		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to retrieve audit logs", err, "Failed to query audit logs from database")
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error retrieving audit logs", err, "Failed to retrieve audit logs")
 	}
 	defer rows.Close()
 
 	var logs []AuditLog
 	for rows.Next() {
 		var log AuditLog
-		if err := rows.Scan(&log.ID, &log.Action, &log.ResourceName, &log.Namespace, &log.Timestamp, &log.Hash); err != nil {
-			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to scan audit log", err, "Failed to scan audit log row")
+		if err := rows.Scan(&log.Action, &log.ResourceName, &log.Namespace, &log.Timestamp, &log.Hash); err != nil {
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error scanning audit log", err, "Failed to scan audit log")
 		}
 		logs = append(logs, log)
 	}

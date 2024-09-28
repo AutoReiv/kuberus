@@ -23,9 +23,23 @@ func CreateAdminHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusMethodNotAllowed, "Method not allowed")
 	}
 
-	username := c.Get("username").(string)
-	if !auth.HasPermission(username, "create_admin") {
-		return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to create an admin")
+	// Check if there are any existing users
+	var userCount int
+	err := db.DB.QueryRow("SELECT COUNT(*) FROM users").Scan(&userCount)
+	if err != nil {
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error checking user count", err, "Failed to check user count")
+	}
+
+	// If there are existing users, check permissions
+	if userCount > 0 {
+		username, ok := c.Get("username").(string)
+		if !ok || username == "" {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to create an admin")
+		}
+
+		if !auth.HasPermission(username, "create_admin") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to create an admin with permission: create_admin")
+		}
 	}
 
 	var req CreateAdminRequest
@@ -40,7 +54,7 @@ func CreateAdminHandler(c echo.Context) error {
 	}
 
 	// Sanitize user input
-	username = utils.SanitizeInput(req.Username)
+	username := utils.SanitizeInput(req.Username)
 	password := utils.SanitizeInput(req.Password)
 
 	// Validate password strength

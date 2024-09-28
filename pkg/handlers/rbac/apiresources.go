@@ -14,7 +14,12 @@ import (
 func APIResourcesHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		username := c.Get("username").(string)
-		if !auth.HasPermission(username, "list_resources") {
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
+
+		if (!isAdmin && !auth.HasPermission(username, "list_resources")) {
 			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to list API resources")
 		}
 

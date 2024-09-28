@@ -18,7 +18,12 @@ import (
 func ServiceAccountsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		username := c.Get("username").(string)
-		if !auth.HasPermission(username, "manage_serviceaccounts") {
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
+
+		if (!isAdmin && !auth.HasPermission(username, "manage_serviceaccounts")) {
 			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to manage service accounts")
 		}
 
@@ -35,7 +40,7 @@ func ServiceAccountsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 		case http.MethodDelete:
 			return handleDeleteServiceAccount(c, clientset, namespace)
 		default:
-			return c.JSON(http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+			return echo.NewHTTPError(http.StatusMethodNotAllowed, "Method not allowed")
 		}
 	}
 }

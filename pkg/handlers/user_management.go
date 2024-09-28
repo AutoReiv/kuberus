@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"rbac/pkg/auth"
+	"rbac/pkg/db"
 	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
@@ -36,7 +37,12 @@ type DeleteUserRequest struct {
 func UserManagementHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		username := c.Get("username").(string)
-		if !auth.HasPermission(username, "manage_users") {
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
+
+		if !isAdmin && !auth.HasPermission(username, "manage_users") {
 			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to manage users")
 		}
 
@@ -56,11 +62,6 @@ func UserManagementHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 }
 // HandleCreateUser creates a new user and assigns a read-only role.
 func HandleCreateUser(c echo.Context, clientset *kubernetes.Clientset) error {
-	username := c.Get("username").(string)
-	if !auth.HasPermission(username, "create_user") {
-		return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to create users")
-	}
-
 	var req CreateUserRequest
 	if err := c.Bind(&req); err != nil {
 		utils.Logger.Error("Invalid request payload", zap.Error(err))
@@ -74,7 +75,7 @@ func HandleCreateUser(c echo.Context, clientset *kubernetes.Clientset) error {
 	}
 
 	// Sanitize user input
-	username = utils.SanitizeInput(req.Username)
+	username := utils.SanitizeInput(req.Username)
 	password := utils.SanitizeInput(req.Password)
 
 	// Validate password strength
@@ -83,10 +84,24 @@ func HandleCreateUser(c echo.Context, clientset *kubernetes.Clientset) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Password does not meet strength requirements"})
 	}
 
+	// Check if there are any existing users
+	var userCount int
+	err := db.DB.QueryRow("SELECT COUNT(*) FROM users").Scan(&userCount)
+	if err != nil {
+		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error checking user count", err, "Failed to check user count")
+	}
+
 	// Create user
-	if err := auth.CreateUser(username, password, "internal"); err != nil {
-		utils.Logger.Error("Error creating user", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error creating user: " + err.Error()})
+	if userCount == 0 {
+		// First user, create as admin
+		if err := auth.CreateUser(username, password, "internal", true); err != nil {
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error creating user", err, "Failed to create user account")
+		}
+	} else {
+		// Create as regular user
+		if err := auth.CreateUser(username, password, "internal", false); err != nil {
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error creating user", err, "Failed to create user account")
+		}
 	}
 
 	// Ensure the read-only role exists
@@ -157,8 +172,8 @@ func assignReadOnlyRole(clientset *kubernetes.Clientset, username string) error 
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
-			Kind: "Role",
-			Name: "read-only",
+			Kind:     "Role",
+			Name:     "read-only",
 			APIGroup: "rbac.authorization.k8s.io",
 		},
 	}

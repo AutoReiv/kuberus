@@ -31,6 +31,16 @@ type SimulateResponse struct {
 // SimulateHandler handles the simulation of role assignments.
 func SimulateHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
+
+		if (!isAdmin && !auth.HasPermission(username, "simulate")) {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to simulate role assignments")
+		}
+
 		var req SimulateRequest
 		if err := c.Bind(&req); err != nil {
 			return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid request payload", err, "Failed to bind simulate request")
@@ -74,7 +84,6 @@ func SimulateHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 		if err != nil {
 			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error fetching cluster roles", err, "Failed to fetch cluster roles")
 		}
-
 		// Validate role name
 		if !isValidRoleName(req.RoleName, roles.Items, clusterRoles.Items) {
 			return echo.NewHTTPError(http.StatusBadRequest, "Invalid role name")

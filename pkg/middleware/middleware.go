@@ -3,12 +3,14 @@ package middleware
 import (
 	"net/http"
 	"rbac/pkg/auth"
+	"rbac/pkg/utils"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
 	jwtMiddleware "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go.uber.org/zap"
 )
 
 // ApplyMiddlewares applies all the middlewares to the given Echo instance.
@@ -58,9 +60,23 @@ func AuthMiddleware(next echo.HandlerFunc, isDevMode bool) echo.HandlerFunc {
 func RBACMiddleware(permission string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			username := c.Get("username").(string)
+			username, ok := c.Get("username").(string)
+			if !ok || username == "" {
+				utils.Logger.Warn("Username not found in context")
+				return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to access this resource with permission: "+permission)
+			}
+
+			isAdmin, ok := c.Get("isAdmin").(bool)
+			if ok && isAdmin {
+				// If the user is an admin, allow access to all resources
+				utils.Logger.Info("Admin access granted", zap.String("username", username))
+				return next(c)
+			}
+
+			utils.Logger.Info("Checking permission", zap.String("username", username), zap.String("permission", permission))
 			if !auth.HasPermission(username, permission) {
-				return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to access this resource")
+				utils.Logger.Warn("Permission denied", zap.String("username", username), zap.String("permission", permission))
+				return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to access this resource with permission: "+permission+" for user: "+username)
 			}
 			return next(c)
 		}
@@ -74,5 +90,23 @@ func JWTMiddleware() echo.MiddlewareFunc {
 		NewClaimsFunc: func(c echo.Context) jwt.Claims {
 			return new(auth.Claims)
 		},
+		SuccessHandler: func(c echo.Context) {
+			user := c.Get("user")
+			token, ok := user.(*jwt.Token)
+			if !ok {
+				utils.Logger.Error("Failed to assert user to *jwt.Token")
+				return
+			}
+
+			claims, ok := token.Claims.(*auth.Claims)
+			if !ok {
+				utils.Logger.Error("Failed to assert token claims to *auth.Claims")
+				return
+			}
+
+			c.Set("username", claims.Username)
+			c.Set("isAdmin", claims.IsAdmin)
+		},
 	})
+
 }

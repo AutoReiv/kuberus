@@ -124,10 +124,22 @@ func createTables() {
 		log.Fatalf("Error creating user_roles table: %v", err)
 	}
 }
-
 func seedInitialData() {
 	roles := []string{"admin", "editor", "viewer"}
-	permissions := []string{"manage_namespaces", "list_namespaces", "create_namespace", "delete_namespace", "list_roles", "create_role", "update_role", "delete_role", "view_role_details"}
+	permissions := []string{
+		"manage_namespaces", "list_namespaces", "create_namespace", "delete_namespace",
+		"list_roles", "create_role", "update_role", "delete_role", "view_role_details",
+		"list_rolebindings", "create_rolebinding", "update_rolebinding", "delete_rolebinding", "view_rolebinding_details",
+		"list_clusterroles", "create_clusterrole", "update_clusterrole", "delete_clusterrole", "view_clusterrole_details",
+		"list_clusterrolebindings", "create_clusterrolebinding", "update_clusterrolebinding", "delete_clusterrolebinding", "view_clusterrolebinding_details",
+		"list_resources",
+		"list_serviceaccounts", "create_serviceaccount", "delete_serviceaccount", "view_serviceaccount_details",
+		"list_users", "view_user_details",
+		"list_groups", "view_group_details",
+		"view_user_roles",
+		"view_audit_logs",
+		"simulate",
+	}
 
 	for _, role := range roles {
 		_, err := DB.Exec("INSERT OR IGNORE INTO roles (name) VALUES (?)", role)

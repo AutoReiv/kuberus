@@ -26,6 +26,17 @@ func NewUploadCertsHandler(clientset *kubernetes.Clientset) *UploadCertsHandler 
 }
 
 func (h *UploadCertsHandler) ServeHTTP(c echo.Context) error {
+	username, _ := c.Get("username").(string)
+	isAdmin, ok := c.Get("isAdmin").(bool)
+	if !ok {
+		return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+	}
+
+	if !isAdmin {
+		utils.Logger.Warn("Forbidden: user is not an admin", zap.String("username", username))
+		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
+	}
+
 	switch c.Request().Method {
 	case http.MethodPost:
 		return h.handleUpload(c)
@@ -37,7 +48,6 @@ func (h *UploadCertsHandler) ServeHTTP(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusMethodNotAllowed, "Method not allowed")
 	}
 }
-
 func (h *UploadCertsHandler) handleUpload(c echo.Context) error {
 	// Ensure the user is an admin
 	username, ok := c.Get("username").(string)

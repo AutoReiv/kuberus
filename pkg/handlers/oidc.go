@@ -24,9 +24,13 @@ func SetOIDCConfigHandler(c echo.Context) error {
 		return c.JSON(http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 	}
 
-	// Ensure the user is an admin
-	username, ok := c.Get("username").(string)
-	if !ok || !auth.IsAdmin(username) {
+	username, _ := c.Get("username").(string)
+	isAdmin, ok := c.Get("isAdmin").(bool)
+	if !ok {
+		return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+	}
+
+	if !isAdmin {
 		return c.JSON(http.StatusForbidden, map[string]string{"error": "Forbidden"})
 	}
 
@@ -39,7 +43,6 @@ func SetOIDCConfigHandler(c echo.Context) error {
 		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to set OIDC configuration", err, "Failed to set OIDC configuration")
 	}
 
-	// Initialize OIDC provider and verifier
 	initOIDCProvider(config)
 
 	utils.Logger.Info("OIDC configuration set successfully", zap.String("username", username))

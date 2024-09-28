@@ -17,7 +17,12 @@ import (
 func NamespacesHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		username := c.Get("username").(string)
-		if !auth.HasPermission(username, "manage_namespaces") {
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
+
+		if !isAdmin && !auth.HasPermission(username, "manage_namespaces") {
 			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to manage namespaces")
 		}
 
@@ -33,7 +38,6 @@ func NamespacesHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 		}
 	}
 }
-
 // handleListNamespaces lists all namespaces.
 func handleListNamespaces(c echo.Context, clientset *kubernetes.Clientset) error {
 	namespaces, err := clientset.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})

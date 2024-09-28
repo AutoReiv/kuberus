@@ -24,7 +24,12 @@ type GroupDetailsResponse struct {
 func GroupDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		username := c.Get("username").(string)
-		if !auth.HasPermission(username, "view_group_details") {
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
+
+		if (!isAdmin && !auth.HasPermission(username, "view_group_details")) {
 			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view group details")
 		}
 

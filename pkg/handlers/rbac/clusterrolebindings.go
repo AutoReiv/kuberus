@@ -18,6 +18,16 @@ import (
 // ClusterRoleBindingsHandler handles requests related to cluster role bindings.
 func ClusterRoleBindingsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		isAdmin, ok := c.Get("isAdmin").(bool)
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
+		}
+
+		if (!isAdmin && !auth.HasPermission(username, "manage_clusterrolebindings")) {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to manage cluster role bindings")
+		}
+
 		switch c.Request().Method {
 		case http.MethodGet:
 			return handleListClusterRoleBindings(c, clientset)
@@ -28,7 +38,7 @@ func ClusterRoleBindingsHandler(clientset *kubernetes.Clientset) echo.HandlerFun
 		case http.MethodDelete:
 			return handleDeleteClusterRoleBinding(c, clientset)
 		default:
-			return c.JSON(http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+			return echo.NewHTTPError(http.StatusMethodNotAllowed, "Method not allowed")
 		}
 	}
 }
