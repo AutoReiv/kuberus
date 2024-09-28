@@ -3,6 +3,7 @@ package rbac
 import (
 	"context"
 	"net/http"
+	"rbac/pkg/auth"
 	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
@@ -14,6 +15,11 @@ import (
 // GroupsHandler handles requests related to listing groups.
 func GroupsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "list_groups") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to list groups")
+		}
+
 		roleBindings, err := clientset.RbacV1().RoleBindings("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing role bindings", err, "Failed to list role bindings")

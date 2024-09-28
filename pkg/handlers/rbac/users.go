@@ -21,6 +21,11 @@ type UserSource struct {
 // UsersHandler handles requests related to listing users.
 func UsersHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "list_users") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to list users")
+		}
+
 		// Fetch users created by admin and OIDC users
 		adminUsers, err := auth.GetAllUsers()
 		if err != nil {

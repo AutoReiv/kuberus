@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"rbac/pkg/auth"
 	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
@@ -108,6 +109,11 @@ func handleDeleteRoleBinding(c echo.Context, clientset *kubernetes.Clientset, na
 // RoleBindingDetailsHandler handles fetching detailed information about a specific role binding.
 func RoleBindingDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "view_rolebinding_details") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view role binding details")
+		}
+
 		roleBindingName := c.QueryParam("name")
 		namespace := c.QueryParam("namespace")
 		if namespace == "" {

@@ -3,14 +3,21 @@ package rbac
 import (
 	"net/http"
 
+	"rbac/pkg/auth"
+	"rbac/pkg/utils"
+
 	"github.com/labstack/echo/v4"
 	"k8s.io/client-go/kubernetes"
-	"rbac/pkg/utils"
 )
 
 // APIResourcesHandler handles retrieving all Kubernetes API resources.
 func APIResourcesHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "list_resources") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to list API resources")
+		}
+
 		// Create a discovery client to list available API resources
 		discoveryClient := clientset.Discovery()
 

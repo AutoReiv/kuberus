@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"rbac/pkg/auth"
 	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
@@ -105,6 +106,11 @@ func handleDeleteClusterRoleBinding(c echo.Context, clientset *kubernetes.Client
 // ClusterRoleBindingDetailsHandler handles fetching detailed information about a specific cluster role binding.
 func ClusterRoleBindingDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "view_clusterrolebinding_details") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view cluster role binding details")
+		}
+
 		clusterRoleBindingName := c.QueryParam("name")
 		if clusterRoleBindingName == "" {
 			return echo.NewHTTPError(http.StatusBadRequest, "Cluster role binding name is required")

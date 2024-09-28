@@ -23,6 +23,11 @@ func CreateAdminHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusMethodNotAllowed, "Method not allowed")
 	}
 
+	username := c.Get("username").(string)
+	if !auth.HasPermission(username, "create_admin") {
+		return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to create an admin")
+	}
+
 	var req CreateAdminRequest
 	if err := c.Bind(&req); err != nil {
 		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid request payload", err, "Failed to bind create admin request")
@@ -35,7 +40,7 @@ func CreateAdminHandler(c echo.Context) error {
 	}
 
 	// Sanitize user input
-	username := utils.SanitizeInput(req.Username)
+	username = utils.SanitizeInput(req.Username)
 	password := utils.SanitizeInput(req.Password)
 
 	// Validate password strength

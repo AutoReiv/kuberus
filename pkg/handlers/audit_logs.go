@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"rbac/pkg/auth"
 	"rbac/pkg/db"
 	"rbac/pkg/utils"
 
@@ -20,6 +21,11 @@ type AuditLog struct {
 
 // GetAuditLogsHandler handles the retrieval of audit logs.
 func GetAuditLogsHandler(c echo.Context) error {
+	username := c.Get("username").(string)
+	if !auth.HasPermission(username, "view_audit_logs") {
+		return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view audit logs")
+	}
+
 	rows, err := db.DB.Query("SELECT id, action, resource_name, namespace, timestamp, hash FROM audit_logs ORDER BY timestamp DESC")
 	if err != nil {
 		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to retrieve audit logs", err, "Failed to query audit logs from database")

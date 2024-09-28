@@ -3,6 +3,7 @@ package rbac
 import (
 	"context"
 	"net/http"
+	"rbac/pkg/auth"
 	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
@@ -22,6 +23,11 @@ type UserDetailsResponse struct {
 // UserDetailsHandler handles requests for detailed information about a specific user.
 func UserDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "view_user_details") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view user details")
+		}
+
 		userName := c.QueryParam("userName")
 		if userName == "" {
 			return echo.NewHTTPError(http.StatusBadRequest, "User name is required")

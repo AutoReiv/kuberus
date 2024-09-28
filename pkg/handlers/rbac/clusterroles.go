@@ -3,6 +3,7 @@ package rbac
 import (
 	"context"
 	"net/http"
+	"rbac/pkg/auth"
 	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
@@ -105,6 +106,11 @@ func handleDeleteClusterRole(c echo.Context, clientset *kubernetes.Clientset) er
 // ClusterRoleDetailsHandler handles fetching detailed information about a specific cluster role.
 func ClusterRoleDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "view_clusterrole_details") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view cluster role details")
+		}
+
 		return handleGetClusterRoleDetails(c, clientset)
 	}
 }

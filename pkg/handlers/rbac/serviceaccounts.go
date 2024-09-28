@@ -4,17 +4,24 @@ import (
 	"context"
 	"net/http"
 
+	"rbac/pkg/auth"
+	"rbac/pkg/utils"
+
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"rbac/pkg/utils"
 )
 
 // ServiceAccountsHandler handles requests related to service accounts.
 func ServiceAccountsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "manage_serviceaccounts") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to manage service accounts")
+		}
+
 		namespace := c.QueryParam("namespace")
 		if namespace == "" {
 			namespace = "default"

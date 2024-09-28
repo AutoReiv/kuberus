@@ -4,8 +4,8 @@ import (
 	"rbac/pkg/db"
 	"rbac/pkg/utils"
 
-	"golang.org/x/crypto/bcrypt"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // OIDCConfig represents the OIDC configuration.
@@ -104,6 +104,7 @@ func UpdateUser(username, password string) error {
 
 	return nil
 }
+
 // DeleteUser deletes a user.
 func DeleteUser(username string) error {
 	result, err := db.DB.Exec("DELETE FROM users WHERE username = ?", username)
@@ -121,6 +122,7 @@ func DeleteUser(username string) error {
 	utils.Logger.Info("User deletion result", zap.String("username", username), zap.Int64("rowsAffected", rowsAffected))
 	return nil
 }
+
 // SetOIDCConfig sets the OIDC configuration.
 func SetOIDCConfig(config *OIDCConfig) error {
 	_, err := db.DB.Exec("INSERT INTO oidc_config (client_id, client_secret, issuer_url, callback_url) VALUES (?, ?, ?, ?)",
@@ -169,4 +171,31 @@ func GetAllUsers() ([]User, error) {
 	}
 
 	return users, nil
+}
+
+// HasPermission checks if a user has a specific permission.
+func HasPermission(username, permission string) bool {
+	var count int
+	query := `
+	SELECT COUNT(*)
+	FROM user_roles ur
+	JOIN role_permissions rp ON ur.role_id = rp.role_id
+	JOIN permissions p ON rp.permission_id = p.id
+	WHERE ur.user_id = ? AND p.name = ?`
+	err := db.DB.QueryRow(query, username, permission).Scan(&count)
+	if err != nil {
+		utils.Logger.Error("Error checking user permission", zap.Error(err))
+		return false
+	}
+	return count > 0
+}
+
+// AssignRoleToUser assigns a role to a user.
+func AssignRoleToUser(username, roleName string) error {
+	_, err := db.DB.Exec("INSERT INTO user_roles (user_id, role_id) VALUES (?, (SELECT id FROM roles WHERE name = ?))", username, roleName)
+	if err != nil {
+		utils.Logger.Error("Error assigning role to user", zap.Error(err))
+		return err
+	}
+	return nil
 }

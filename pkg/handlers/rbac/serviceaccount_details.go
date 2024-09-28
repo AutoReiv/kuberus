@@ -4,11 +4,13 @@ import (
 	"context"
 	"net/http"
 
+	"rbac/pkg/auth"
+	"rbac/pkg/utils"
+
 	"github.com/labstack/echo/v4"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"rbac/pkg/utils"
 )
 
 // ServiceAccountDetailsResponse represents the detailed information about a service account.
@@ -22,6 +24,11 @@ type ServiceAccountDetailsResponse struct {
 // ServiceAccountDetailsHandler handles requests for detailed information about a specific service account.
 func ServiceAccountDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "view_serviceaccount_details") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view service account details")
+		}
+
 		serviceAccountName := c.QueryParam("serviceAccountName")
 		if serviceAccountName == "" {
 			return echo.NewHTTPError(http.StatusBadRequest, "Service account name is required")

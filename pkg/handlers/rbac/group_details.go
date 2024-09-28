@@ -3,6 +3,7 @@ package rbac
 import (
 	"context"
 	"net/http"
+	"rbac/pkg/auth"
 	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
@@ -22,6 +23,11 @@ type GroupDetailsResponse struct {
 // GroupDetailsHandler handles requests for detailed information about a specific group.
 func GroupDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "view_group_details") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view group details")
+		}
+
 		groupName := c.QueryParam("groupName")
 		if groupName == "" {
 			return echo.NewHTTPError(http.StatusBadRequest, "Group name is required")

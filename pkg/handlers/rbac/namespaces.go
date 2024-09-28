@@ -9,12 +9,18 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"rbac/pkg/auth"
 	"rbac/pkg/utils"
 )
 
 // NamespacesHandler handles requests related to namespaces.
 func NamespacesHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		username := c.Get("username").(string)
+		if !auth.HasPermission(username, "manage_namespaces") {
+			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to manage namespaces")
+		}
+
 		switch c.Request().Method {
 		case http.MethodGet:
 			return handleListNamespaces(c, clientset)
