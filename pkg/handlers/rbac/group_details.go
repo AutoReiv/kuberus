@@ -25,7 +25,7 @@ func GroupDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		username := c.Get("username").(string)
 		isAdmin, ok := c.Get("isAdmin").(bool)
-		if !ok {
+		if (!ok) {
 			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
 		}
 
@@ -34,22 +34,22 @@ func GroupDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 		}
 
 		groupName := c.QueryParam("groupName")
-		if groupName == "" {
+		if (groupName == "") {
 			return echo.NewHTTPError(http.StatusBadRequest, "Group name is required")
 		}
 
 		roleBindings, err := clientset.RbacV1().RoleBindings("").List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
+		if (err != nil) {
 			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing role bindings", err, "Failed to list role bindings")
 		}
 
 		clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
+		if (err != nil) {
 			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing cluster role bindings", err, "Failed to list cluster role bindings")
 		}
 
 		clusterRoles, err := clientset.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
+		if (err != nil) {
 			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing cluster roles", err, "Failed to list cluster roles")
 		}
 
@@ -66,7 +66,7 @@ func extractGroupDetails(groupName string, roleBindings []rbacv1.RoleBinding, cl
 
 	for _, rb := range roleBindings {
 		for _, subject := range rb.Subjects {
-			if subject.Kind == rbacv1.GroupKind && subject.Name == groupName {
+			if (subject.Kind == rbacv1.GroupKind && subject.Name == groupName) {
 				groupRoleBindings = append(groupRoleBindings, rb)
 			}
 		}
@@ -74,7 +74,7 @@ func extractGroupDetails(groupName string, roleBindings []rbacv1.RoleBinding, cl
 
 	for _, crb := range clusterRoleBindings {
 		for _, subject := range crb.Subjects {
-			if subject.Kind == rbacv1.GroupKind && subject.Name == groupName {
+			if (subject.Kind == rbacv1.GroupKind && subject.Name == groupName) {
 				groupClusterRoleBindings = append(groupClusterRoleBindings, crb)
 			}
 		}
@@ -83,7 +83,7 @@ func extractGroupDetails(groupName string, roleBindings []rbacv1.RoleBinding, cl
 	// Collect ClusterRoles associated with the group's ClusterRoleBindings
 	for _, crb := range groupClusterRoleBindings {
 		for _, cr := range clusterRoles {
-			if cr.Name == crb.RoleRef.Name {
+			if (cr.Name == crb.RoleRef.Name) {
 				groupClusterRoles = append(groupClusterRoles, cr)
 			}
 		}

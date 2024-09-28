@@ -27,7 +27,7 @@ func UsersHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
 		}
 
-		if (!isAdmin && !auth.HasPermission(username, "list_users")) {
+		if !isAdmin && !auth.HasPermission(username, "list_users") {
 			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to list users")
 		}
 

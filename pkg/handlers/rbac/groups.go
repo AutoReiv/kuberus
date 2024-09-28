@@ -17,7 +17,7 @@ func GroupsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		username := c.Get("username").(string)
 		isAdmin, ok := c.Get("isAdmin").(bool)
-		if !ok {
+		if (!ok) {
 			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
 		}
 
@@ -26,12 +26,12 @@ func GroupsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 		}
 
 		roleBindings, err := clientset.RbacV1().RoleBindings("").List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
+		if (err != nil) {
 			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing role bindings", err, "Failed to list role bindings")
 		}
 
 		clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
+		if (err != nil) {
 			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing cluster role bindings", err, "Failed to list cluster role bindings")
 		}
 
@@ -46,7 +46,7 @@ func extractGroupsFromBindings(roleBindings []rbacv1.RoleBinding, clusterRoleBin
 
 	for _, rb := range roleBindings {
 		for _, subject := range rb.Subjects {
-			if subject.Kind == rbacv1.GroupKind {
+			if (subject.Kind == rbacv1.GroupKind) {
 				groupSet[subject.Name] = struct{}{}
 			}
 		}
@@ -54,7 +54,7 @@ func extractGroupsFromBindings(roleBindings []rbacv1.RoleBinding, clusterRoleBin
 
 	for _, crb := range clusterRoleBindings {
 		for _, subject := range crb.Subjects {
-			if subject.Kind == rbacv1.GroupKind {
+			if (subject.Kind == rbacv1.GroupKind) {
 				groupSet[subject.Name] = struct{}{}
 			}
 		}
