@@ -134,6 +134,7 @@ const ServiceAccounts = () => {
         <GenericDataTable
           data={serviceAccounts}
           columns={columns}
+          enableGridView={false}
           title="Service Accounts"
           description="Manage and configure service accounts in your Kubernetes cluster"
         />

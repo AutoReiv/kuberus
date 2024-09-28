@@ -11,7 +11,6 @@ import {
   Bell,
   Blend,
   Group,
-  GroupIcon,
   Folder,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";

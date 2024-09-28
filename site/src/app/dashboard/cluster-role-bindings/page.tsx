@@ -93,11 +93,11 @@ const ClusterRoleBindings = () => {
       header: "Subjects",
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1">
-          {row.original.subjects.map((subject, index) => (
+          {row.original.subjects?.map((subject, index) => (
             <Badge key={index} variant="secondary">
               {subject.kind}: {subject.name}
             </Badge>
-          ))}
+          )) ?? "No subjects"}
         </div>
       ),
     },
@@ -277,6 +277,7 @@ const ClusterRoleBindings = () => {
         <GenericDataTable
           data={clusterRoleBindings}
           columns={columns}
+          enableGridView={false}
           rowActions={(row) => [
             <Trash
               key="delete"
