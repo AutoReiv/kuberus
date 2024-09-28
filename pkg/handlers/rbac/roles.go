@@ -172,7 +172,7 @@ func handleDeleteRole(c echo.Context, clientset *kubernetes.Clientset, namespace
 
 	utils.Logger.Info("Role deleted successfully", zap.String("roleName", name), zap.String("namespace", namespace))
 	utils.LogAuditEvent(c.Request(), "delete", name, namespace)
-	return c.NoContent(http.StatusNoContent)
+	return c.JSON(http.StatusOK, map[string]string{"message": "Role deleted successfully"})
 }
 
 // RoleDetailsResponse represents the detailed information about a role.

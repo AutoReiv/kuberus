@@ -87,20 +87,20 @@ func handleUpdateClusterRole(c echo.Context, clientset *kubernetes.Clientset) er
 
 // handleDeleteClusterRole deletes a cluster role by name.
 func handleDeleteClusterRole(c echo.Context, clientset *kubernetes.Clientset) error {
-	name := c.QueryParam("name")
-	if name == "" {
-		utils.Logger.Warn("Cluster role name is required")
-		return echo.NewHTTPError(http.StatusBadRequest, "Cluster role name is required")
-	}
+    name := c.QueryParam("name")
+    if name == "" {
+        utils.Logger.Warn("Cluster role name is required")
+        return echo.NewHTTPError(http.StatusBadRequest, "Cluster role name is required")
+    }
 
-	err := clientset.RbacV1().ClusterRoles().Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if err != nil {
-		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to delete cluster role", err, "Failed to delete cluster role in Kubernetes")
-	}
+    err := clientset.RbacV1().ClusterRoles().Delete(context.TODO(), name, metav1.DeleteOptions{})
+    if err != nil {
+        return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to delete cluster role", err, "Failed to delete cluster role in Kubernetes")
+    }
 
-	utils.Logger.Info("Cluster role deleted successfully", zap.String("clusterRoleName", name))
-	utils.LogAuditEvent(c.Request(), "delete", name, "cluster-wide")
-	return c.NoContent(http.StatusNoContent)
+    utils.Logger.Info("Cluster role deleted successfully", zap.String("clusterRoleName", name))
+    utils.LogAuditEvent(c.Request(), "delete", name, "cluster-wide")
+    return c.JSON(http.StatusOK, map[string]string{"message": "Cluster role deleted successfully"})
 }
 
 // ClusterRoleDetailsHandler handles fetching detailed information about a specific cluster role.

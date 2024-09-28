@@ -63,18 +63,18 @@ func handleCreateNamespace(c echo.Context, clientset *kubernetes.Clientset) erro
 
 // handleDeleteNamespace deletes a namespace by name.
 func handleDeleteNamespace(c echo.Context, clientset *kubernetes.Clientset) error {
-	name := c.QueryParam("name")
-	if name == "" {
-		utils.Logger.Warn("Namespace name is required")
-		return echo.NewHTTPError(http.StatusBadRequest, "Namespace name is required")
-	}
+    name := c.QueryParam("name")
+    if name == "" {
+        utils.Logger.Warn("Namespace name is required")
+        return echo.NewHTTPError(http.StatusBadRequest, "Namespace name is required")
+    }
 
-	err := clientset.CoreV1().Namespaces().Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if err != nil {
-		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to delete namespace", err, "Failed to delete namespace in Kubernetes")
-	}
+    err := clientset.CoreV1().Namespaces().Delete(context.TODO(), name, metav1.DeleteOptions{})
+    if err != nil {
+        return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to delete namespace", err, "Failed to delete namespace in Kubernetes")
+    }
 
-	utils.Logger.Info("Namespace deleted successfully", zap.String("namespaceName", name))
-	utils.LogAuditEvent(c.Request(), "delete", name, "N/A")
-	return c.NoContent(http.StatusNoContent)
+    utils.Logger.Info("Namespace deleted successfully", zap.String("namespaceName", name))
+    utils.LogAuditEvent(c.Request(), "delete", name, "N/A")
+    return c.JSON(http.StatusOK, map[string]string{"message": "Namespace deleted successfully"})
 }

@@ -87,20 +87,20 @@ func handleUpdateClusterRoleBinding(c echo.Context, clientset *kubernetes.Client
 
 // handleDeleteClusterRoleBinding deletes a cluster role binding by name.
 func handleDeleteClusterRoleBinding(c echo.Context, clientset *kubernetes.Clientset) error {
-	name := c.QueryParam("name")
-	if name == "" {
-		utils.Logger.Warn("Cluster role binding name is required")
-		return echo.NewHTTPError(http.StatusBadRequest, "Cluster role binding name is required")
-	}
+    name := c.QueryParam("name")
+    if name == "" {
+        utils.Logger.Warn("Cluster role binding name is required")
+        return echo.NewHTTPError(http.StatusBadRequest, "Cluster role binding name is required")
+    }
 
-	err := clientset.RbacV1().ClusterRoleBindings().Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if err != nil {
-		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to delete cluster role binding", err, "Failed to delete cluster role binding in Kubernetes")
-	}
+    err := clientset.RbacV1().ClusterRoleBindings().Delete(context.TODO(), name, metav1.DeleteOptions{})
+    if err != nil {
+        return utils.LogAndRespondError(c, http.StatusInternalServerError, "Failed to delete cluster role binding", err, "Failed to delete cluster role binding in Kubernetes")
+    }
 
-	utils.Logger.Info("Cluster role binding deleted successfully", zap.String("clusterRoleBindingName", name))
-	utils.LogAuditEvent(c.Request(), "delete", name, "cluster-wide")
-	return c.NoContent(http.StatusNoContent)
+    utils.Logger.Info("Cluster role binding deleted successfully", zap.String("clusterRoleBindingName", name))
+    utils.LogAuditEvent(c.Request(), "delete", name, "cluster-wide")
+    return c.JSON(http.StatusOK, map[string]string{"message": "Cluster role binding deleted successfully"})
 }
 
 // ClusterRoleBindingDetailsHandler handles fetching detailed information about a specific cluster role binding.
