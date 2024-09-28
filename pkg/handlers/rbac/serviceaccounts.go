@@ -82,5 +82,5 @@ func handleDeleteServiceAccount(c echo.Context, clientset *kubernetes.Clientset,
 
 	utils.Logger.Info("Service account deleted successfully", zap.String("serviceAccountName", name), zap.String("namespace", namespace))
 	utils.LogAuditEvent(c.Request(), "delete", name, namespace)
-	return c.NoContent(http.StatusNoContent)
+	return c.JSON(http.StatusOK, map[string]string{"message": "Service account deleted successfully"})
 }

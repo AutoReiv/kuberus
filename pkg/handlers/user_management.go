@@ -226,7 +226,10 @@ func handleDeleteUser(c echo.Context) error {
 	utils.Logger.Info("User account deleted successfully", zap.String("username", username))
 	utils.LogAuditEvent(c.Request(), "delete_user", username, "N/A")
 	return c.JSON(http.StatusOK, map[string]string{"message": "User account deleted successfully"})
+
 }
+
+// handleListUsers handles the retrieval of user accounts
 func handleListUsers(c echo.Context) error {
 	username := c.Get("username").(string)
 	if !auth.HasPermission(username, "list_users") {
