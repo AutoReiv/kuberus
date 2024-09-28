@@ -22,10 +22,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { z } from "zod";
-import YamlEditor from "@focus-reactive/react-yaml";
+import YamlEditor from "@/components/YamlEditor";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import CreateRole from "./_components/CreateRole";
+import yaml from "js-yaml";
 
 /**
  * Renders a component that displays a list of roles and namespaces.
@@ -70,7 +71,16 @@ const Roles = () => {
   const router = useRouter();
   const [isCreateRoleDialogOpen, setIsCreateRoleDialogOpen] = useState(false);
   const queryClient = useQueryClient();
-
+  const [yamlContent, setYamlContent] = useState("");
+  const initialData = `apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: example-role
+  namespace: default
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]`;
   // Get Roles
   const {
     data: roles,
@@ -153,6 +163,7 @@ const Roles = () => {
           </span>
         );
       },
+      cell: ({ row }) => row.original.metadata?.namespace || "N/A",
     },
     {
       id: "createdAt",
@@ -175,6 +186,15 @@ const Roles = () => {
     },
   ];
 
+  const handleCreateRoleFromYaml = (content: string) => {
+    try {
+      const roleData = yaml.load(content);
+      createRoleMutation.mutate(roleData);
+    } catch (error) {
+      toast.error(`Error parsing YAML: ${error.message}`);
+    }
+  };
+
   const routeToDetails = (namespace: string, name: string) => {
     router.push(`/dashboard/roles/${namespace}/${name}`);
     toast(`Routing to details page for ${name}`);
@@ -185,15 +205,32 @@ const Roles = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
       setIsCreateRoleDialogOpen(false);
-      toast(`Role has been created successfully`);
+      toast.success(`Role has been created successfully`);
     },
-    onError: (error) => {
-      toast(`Error creating role: ${error.message}`);
+    onError: (error: any) => {
+      if (error.response && error.response.status === 409) {
+        toast.error(
+          `Error: A role with this name already exists in the specified namespace.`
+        );
+      } else {
+        toast.error(`Error creating role: ${error.message}`);
+      }
     },
   });
-
   const handleCreateRole = (data: z.infer<typeof roleSchema>) => {
-    console.log(data.namespace, 'namespace')
+    const existingRole = roles.find(
+      (role) =>
+        role.metadata.name === data.roleName &&
+        role.metadata.namespace === data.namespace
+    );
+
+    if (existingRole) {
+      toast.error(
+        `A role with the name "${data.roleName}" already exists in the "${data.namespace}" namespace.`
+      );
+      return;
+    }
+
     const roleData = {
       apiVersion: "rbac.authorization.k8s.io/v1",
       kind: "Role",
@@ -284,10 +321,10 @@ const Roles = () => {
               <CreateRole onSubmit={handleCreateRole} />
             </TabsContent>
             <TabsContent value="yaml">
-              {/* <YamlEditor text={formText} onChange={handleChange} /> */}
-              {/* <Button variant="ghost" onClick={() => createRole(event)}>
-                Create Role{" "}
-              </Button> */}
+              <YamlEditor
+                initialContent={initialData}
+                onSave={handleCreateRoleFromYaml}
+              />
             </TabsContent>
           </Tabs>
         </ResponsiveDialog>
@@ -298,6 +335,7 @@ const Roles = () => {
         <GenericDataTable
           data={roles}
           columns={columns}
+          enableGridView={false}
           enableRowSelection={true}
           rowActions={(row) => [
             <Trash

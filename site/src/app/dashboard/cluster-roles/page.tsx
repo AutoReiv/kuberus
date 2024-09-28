@@ -358,6 +358,7 @@ const ClusterRoles = () => {
         <GenericDataTable
           data={clusterRoles}
           columns={columns}
+          enableGridView={false}
           rowActions={(row) => [
             <Trash
               key="delete"

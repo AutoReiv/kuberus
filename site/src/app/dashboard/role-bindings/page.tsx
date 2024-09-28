@@ -323,6 +323,7 @@ const RoleBindings = () => {
         <GenericDataTable
           data={roleBindings}
           columns={columns}
+          enableGridView={false}
           rowActions={(row) => [
             <Trash key="delete" size={20} onClick={() => onDelete(row)}>
               Delete

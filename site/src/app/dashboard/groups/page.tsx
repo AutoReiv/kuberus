@@ -49,9 +49,9 @@ const Groups = () => {
         <GenericDataTable
           data={groups}
           columns={columns}
+          enableGridView={false}
           title="Groups"
           description="Groups are used to group users together. You can create groups to manage users and permissions." 
-          // Add in row action to route to details
         ></GenericDataTable>
       )}
     </motion.div>
