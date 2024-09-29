@@ -23,25 +23,6 @@ func CreateAdminHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusMethodNotAllowed, "Method not allowed")
 	}
 
-	// Check if there are any existing users
-	var userCount int
-	err := db.DB.QueryRow("SELECT COUNT(*) FROM users").Scan(&userCount)
-	if err != nil {
-		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error checking user count", err, "Failed to check user count")
-	}
-
-	// If there are existing users, check permissions
-	if userCount > 0 {
-		username, ok := c.Get("username").(string)
-		if !ok || username == "" {
-			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to create an admin")
-		}
-
-		if !auth.HasPermission(username, "create_admin") {
-			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to create an admin with permission: create_admin")
-		}
-	}
-
 	var req CreateAdminRequest
 	if err := c.Bind(&req); err != nil {
 		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid request payload", err, "Failed to bind create admin request")
@@ -71,7 +52,7 @@ func CreateAdminHandler(c echo.Context) error {
 
 	// Check if an admin account already exists
 	var adminExists bool
-	err = db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username = ?)", username).Scan(&adminExists)
+	err = db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE is_admin = true)").Scan(&adminExists)
 	if err != nil {
 		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error checking admin existence", err, "Failed to check if admin exists")
 	}

@@ -55,7 +55,7 @@ func RegisterHandler(c echo.Context) error {
 	// Create user
 	if userCount == 0 {
 		// First user, create as admin
-		if err := auth.CreateUser(username, password, "internal", true); err != nil {
+		if err := auth.CreateUser(username, password, "internal"); err != nil {
 			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error creating user", err, "Failed to create user account")
 		}
 		// Assign admin role to the first user
@@ -64,8 +64,12 @@ func RegisterHandler(c echo.Context) error {
 		}
 	} else {
 		// Create as regular user
-		if err := auth.CreateUser(username, password, "internal", false); err != nil {
+		if err := auth.CreateUser(username, password, "internal"); err != nil {
 			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error creating user", err, "Failed to create user account")
+		}
+		// Assign viewer role to subsequent users
+		if err := auth.AssignRoleToUser(username, "viewer"); err != nil {
+			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error assigning viewer role", err, "Failed to assign viewer role to user")
 		}
 	}
 

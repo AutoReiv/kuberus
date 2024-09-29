@@ -124,8 +124,9 @@ func createTables() {
 		log.Fatalf("Error creating user_roles table: %v", err)
 	}
 }
+
 func seedInitialData() {
-	roles := []string{"admin", "editor", "viewer"}
+	roles := []string{"admin", "developer", "viewer"}
 	permissions := []string{
 		"manage_namespaces", "list_namespaces", "create_namespace", "delete_namespace",
 		"list_roles", "create_role", "update_role", "delete_role", "view_role_details",
@@ -137,8 +138,6 @@ func seedInitialData() {
 		"list_users", "view_user_details",
 		"list_groups", "view_group_details",
 		"view_user_roles",
-		"view_audit_logs",
-		"simulate",
 	}
 
 	for _, role := range roles {
@@ -155,7 +154,39 @@ func seedInitialData() {
 		}
 	}
 
-	// Assign permissions to roles (example: admin gets all permissions)
+	// Assign permissions to roles
+	assignPermissionsToRole("admin", permissions)
+
+	developerPermissions := []string{
+		"manage_namespaces", "list_namespaces", "create_namespace",
+		"list_roles", "create_role", "update_role", "view_role_details",
+		"list_rolebindings", "create_rolebinding", "update_rolebinding", "view_rolebinding_details",
+		"list_clusterroles", "create_clusterrole", "update_clusterrole", "view_clusterrole_details",
+		"list_clusterrolebindings", "create_clusterrolebinding", "update_clusterrolebinding", "view_clusterrolebinding_details",
+		"list_resources",
+		"list_serviceaccounts", "create_serviceaccount", "view_serviceaccount_details",
+		"list_users", "view_user_details",
+		"list_groups", "view_group_details",
+		"view_user_roles",
+	}
+	assignPermissionsToRole("developer", developerPermissions)
+
+	viewerPermissions := []string{
+		"list_namespaces",
+		"list_roles", "view_role_details",
+		"list_rolebindings", "view_rolebinding_details",
+		"list_clusterroles", "view_clusterrole_details",
+		"list_clusterrolebindings", "view_clusterrolebinding_details",
+		"list_resources",
+		"list_serviceaccounts", "view_serviceaccount_details",
+		"list_users", "view_user_details",
+		"list_groups", "view_group_details",
+		"view_user_roles",
+	}
+	assignPermissionsToRole("viewer", viewerPermissions)
+}
+
+func assignPermissionsToRole(roleName string, permissions []string) {
 	for _, permission := range permissions {
 		var permissionID int
 		err := DB.QueryRow("SELECT id FROM permissions WHERE name = ?", permission).Scan(&permissionID)
@@ -163,9 +194,9 @@ func seedInitialData() {
 			log.Fatalf("Error fetching permission ID: %v", err)
 		}
 
-		_, err = DB.Exec("INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ((SELECT id FROM roles WHERE name = 'admin'), ?)", permissionID)
+		_, err = DB.Exec("INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES ((SELECT id FROM roles WHERE name = ?), ?)", roleName, permissionID)
 		if err != nil {
-			log.Fatalf("Error assigning permissions to admin role: %v", err)
+			log.Fatalf("Error assigning permissions to %s role: %v", roleName, err)
 		}
 	}
 }

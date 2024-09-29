@@ -52,14 +52,14 @@ func IsAdmin(username string) bool {
 }
 
 // CreateUser creates a new user.
-func CreateUser(username, password, source string, isAdmin bool) error {
+func CreateUser(username, password, source string) error {
 	hashedPassword, err := HashPassword(password)
 	if err != nil {
 		utils.Logger.Error("Error hashing password", zap.Error(err))
 		return err
 	}
 
-	_, err = db.DB.Exec("INSERT INTO users (username, password, source, is_admin) VALUES (?, ?, ?, ?)", username, hashedPassword, source, isAdmin)
+	_, err = db.DB.Exec("INSERT INTO users (username, password, source) VALUES (?, ?, ?)", username, hashedPassword, source)
 	if err != nil {
 		utils.Logger.Error("Error creating user", zap.Error(err))
 		return err
@@ -67,6 +67,7 @@ func CreateUser(username, password, source string, isAdmin bool) error {
 
 	return nil
 }
+
 // CreateUserIfNotExists creates a new user if they do not already exist.
 func CreateUserIfNotExists(username, source string) error {
 	var exists bool
@@ -181,15 +182,14 @@ func HasPermission(username, permission string) bool {
 	JOIN role_permissions rp ON ur.role_id = rp.role_id
 	JOIN permissions p ON rp.permission_id = p.id
 	WHERE ur.user_id = ? AND p.name = ?`
-	utils.Logger.Debug("Executing permission check query", zap.String("query", query), zap.String("username", username), zap.String("permission", permission))
 	err := db.DB.QueryRow(query, username, permission).Scan(&count)
 	if err != nil {
 		utils.Logger.Error("Error checking user permission", zap.Error(err))
 		return false
 	}
-	utils.Logger.Debug("Permission check result", zap.String("username", username), zap.String("permission", permission), zap.Int("count", count))
 	return count > 0
 }
+
 // AssignRoleToUser assigns a role to a user.
 func AssignRoleToUser(username, roleName string) error {
 	_, err := db.DB.Exec("INSERT INTO user_roles (user_id, role_id) VALUES (?, (SELECT id FROM roles WHERE name = ?))", username, roleName)

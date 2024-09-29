@@ -1,16 +1,12 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 	"rbac/pkg/auth"
-	"rbac/pkg/db"
 	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
-	rbacv1 "k8s.io/api/rbac/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -19,6 +15,7 @@ type CreateUserRequest struct {
 	Username        string `json:"username" binding:"required"`
 	Password        string `json:"password" binding:"required"`
 	PasswordConfirm string `json:"passwordConfirm" binding:"required"`
+	Role            string `json:"role" binding:"required"` // New field for role
 }
 
 // UpdateUserRequest represents the request payload for updating a user's password.
@@ -60,8 +57,14 @@ func UserManagementHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 		}
 	}
 }
-// HandleCreateUser creates a new user and assigns a read-only role.
+
+// HandleCreateUser creates a new user and assigns a specified role.
 func HandleCreateUser(c echo.Context, clientset *kubernetes.Clientset) error {
+	username := c.Get("username").(string)
+	if !auth.HasPermission(username, "create_user") {
+		return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to create users")
+	}
+
 	var req CreateUserRequest
 	if err := c.Bind(&req); err != nil {
 		utils.Logger.Error("Invalid request payload", zap.Error(err))
@@ -75,8 +78,9 @@ func HandleCreateUser(c echo.Context, clientset *kubernetes.Clientset) error {
 	}
 
 	// Sanitize user input
-	username := utils.SanitizeInput(req.Username)
+	username = utils.SanitizeInput(req.Username)
 	password := utils.SanitizeInput(req.Password)
+	role := utils.SanitizeInput(req.Role)
 
 	// Validate password strength
 	if !utils.IsStrongPassword(password) {
@@ -84,36 +88,16 @@ func HandleCreateUser(c echo.Context, clientset *kubernetes.Clientset) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Password does not meet strength requirements"})
 	}
 
-	// Check if there are any existing users
-	var userCount int
-	err := db.DB.QueryRow("SELECT COUNT(*) FROM users").Scan(&userCount)
-	if err != nil {
-		return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error checking user count", err, "Failed to check user count")
-	}
-
 	// Create user
-	if userCount == 0 {
-		// First user, create as admin
-		if err := auth.CreateUser(username, password, "internal", true); err != nil {
-			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error creating user", err, "Failed to create user account")
-		}
-	} else {
-		// Create as regular user
-		if err := auth.CreateUser(username, password, "internal", false); err != nil {
-			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error creating user", err, "Failed to create user account")
-		}
+	if err := auth.CreateUser(username, password, "internal"); err != nil {
+		utils.Logger.Error("Error creating user", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error creating user: " + err.Error()})
 	}
 
-	// Ensure the read-only role exists
-	if err := EnsureReadOnlyRole(clientset, "default"); err != nil {
-		utils.Logger.Error("Error ensuring read-only role", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error ensuring read-only role: " + err.Error()})
-	}
-
-	// Assign read-only role to the new user
-	if err := assignReadOnlyRole(clientset, username); err != nil {
-		utils.Logger.Error("Error assigning read-only role", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error assigning read-only role: " + err.Error()})
+	// Assign the specified role to the new user
+	if err := auth.AssignRoleToUser(username, role); err != nil {
+		utils.Logger.Error("Error assigning role to user", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error assigning role to user: " + err.Error()})
 	}
 
 	utils.Logger.Info("User account created successfully", zap.String("username", username))
@@ -121,67 +105,7 @@ func HandleCreateUser(c echo.Context, clientset *kubernetes.Clientset) error {
 	return c.JSON(http.StatusOK, map[string]string{"message": "User account created successfully"})
 }
 
-// EnsureReadOnlyRole ensures that the read-only role exists in the specified namespace.
-func EnsureReadOnlyRole(clientset *kubernetes.Clientset, namespace string) error {
-	roleName := "read-only"
-
-	// Check if the role already exists
-	_, err := clientset.RbacV1().Roles(namespace).Get(context.TODO(), roleName, metav1.GetOptions{})
-	if err == nil {
-		// Role already exists, no need to create it
-		return nil
-	}
-
-	// Define the read-only role
-	readOnlyRole := &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: roleName,
-		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{""},
-				Resources: []string{"pods", "services", "deployments"},
-				Verbs:     []string{"get", "list", "watch"},
-			},
-		},
-	}
-
-	// Create the read-only role
-	_, err = clientset.RbacV1().Roles(namespace).Create(context.TODO(), readOnlyRole, metav1.CreateOptions{})
-	if err != nil {
-		utils.Logger.Error("Failed to create read-only role", zap.Error(err))
-		return err
-	}
-
-	utils.Logger.Info("Read-only role created successfully", zap.String("roleName", roleName), zap.String("namespace", namespace))
-	return nil
-}
-
-// assignReadOnlyRole assigns the read-only role to a user.
-func assignReadOnlyRole(clientset *kubernetes.Clientset, username string) error {
-	// Create a RoleBinding to assign the read-only role to the user
-	roleBinding := &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      username + "-read-only",
-			Namespace: "default",
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind: "User",
-				Name: username,
-			},
-		},
-		RoleRef: rbacv1.RoleRef{
-			Kind:     "Role",
-			Name:     "read-only",
-			APIGroup: "rbac.authorization.k8s.io",
-		},
-	}
-
-	_, err := clientset.RbacV1().RoleBindings("default").Create(context.TODO(), roleBinding, metav1.CreateOptions{})
-	return err
-}
-
+// handleUpdateUser updates an existing user's details.
 func handleUpdateUser(c echo.Context) error {
 	username := c.Get("username").(string)
 	if !auth.HasPermission(username, "update_user") {
