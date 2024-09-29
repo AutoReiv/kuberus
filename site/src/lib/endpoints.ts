@@ -23,19 +23,21 @@ export const ENDPOINTS = {
       UPDATE: (namespace: string, name: string) =>
         `/api/roles?namespace=${namespace}&name=${name}`,
       CREATE: `/api/roles`,
-      DELETE: (namespace: string, name: string) => `/api/roles?namespace=${namespace}&name=${name}`,
+      DELETE: (namespace: string, name: string) =>
+        `/api/roles?namespace=${namespace}&name=${name}`,
     },
     ROLEBINDINGS: {
       BASE: "/api/rolebindings",
       DETAILS: (namespace: string, name: string) =>
         `/api/rolebinding/details?name=${name}&namespace=${namespace}`,
-      DELETE: (namespace: string, name: string) => `/api/rolebindings?namespace=${namespace}&name=${name}`,
+      DELETE: (namespace: string, name: string) =>
+        `/api/rolebindings?namespace=${namespace}&name=${name}`,
     },
     CLUSTERROLES: {
       BASE: "/api/clusterroles",
       DETAILS: (name: string) =>
         `/api/clusterroles/details?clusterRoleName=${name}`,
-      DELETE: (name: string) => `/api/clusterroles?clusterRoleName=${name}`,
+      DELETE: (name: string) => `/api/clusterroles?name=${name}`,
       CREATE: `/api/clusterroles`,
     },
     CLUSTERROLEBINDINGS: {
@@ -65,8 +67,10 @@ export const ENDPOINTS = {
   },
 
   ADMIN: {
-    CREATION: () => "/admin/create",
-    USERS: (username?: string) => `/admin/users`,
+    CREATE: "/admin/users",
+    DELETE: "/admin/users",
+    UPDATE: "/admin/users",
+    LIST: "/admin/users",
   },
 
   // Audit and logging endpoints

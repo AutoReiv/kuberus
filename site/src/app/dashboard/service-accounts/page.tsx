@@ -12,19 +12,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Copy,
-  Edit,
-  FileText,
-  MoreHorizontal,
-  Trash
-} from "lucide-react";
+import { Copy, Edit, FileText, MoreHorizontal, Trash } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { SkeletonPage } from "@/components/SkeletonPage";
 import { pageVariants } from "../layout";
 import { motion } from "framer-motion";
+import { useServiceAccounts } from "@/hooks/useServiceAccounts";
 
 interface ServiceAccount {
   metadata: {
@@ -36,14 +31,7 @@ interface ServiceAccount {
 
 const ServiceAccounts = () => {
   // Get Service Accounts
-  const {
-    data: serviceAccounts,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ["serviceAccounts"],
-    queryFn: () => apiClient.getServiceAccounts(),
-  });
+  const { data: serviceAccounts, isLoading, isError } = useServiceAccounts();
 
   const columns: ColumnDef<ServiceAccount>[] = [
     {

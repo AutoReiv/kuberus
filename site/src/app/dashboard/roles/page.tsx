@@ -1,14 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/apiClient";
 import GenericDataTable from "@/components/GenericDataTable";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ColumnDef } from "@tanstack/react-table";
-import { Role } from "../_interfaces/role";
+import { Role } from "../../../interfaces/role";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown, Eye, MoreHorizontal, Plus, Trash } from "lucide-react";
+import { ArrowUpDown, Eye, Plus, Trash } from "lucide-react";
 import { format } from "date-fns";
 import { SkeletonPage } from "@/components/SkeletonPage";
 import { motion } from "framer-motion";
@@ -25,15 +23,10 @@ import { z } from "zod";
 import YamlEditor from "@/components/YamlEditor";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import CreateRole from "./_components/CreateRole";
+import CreateRoleDialog from "./_components/CreateRoleDialog";
 import yaml from "js-yaml";
+import { useCreateRole, useDeleteRoles, useRoles } from "@/hooks/useRoles";
 
-/**
- * Renders a component that displays a list of roles and namespaces.
- *
- * The component uses the `useQuery` hook from `@tanstack/react-query` to fetch the list of roles and namespaces from the API.
- * If the data is still being fetched, a skeleton loader is displayed. Otherwise, a `DataTable` component is rendered with the fetched roles and namespaces.
- */
 const dnsNameRegex =
   /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/;
 
@@ -70,8 +63,6 @@ const roleSchema = z
 const Roles = () => {
   const router = useRouter();
   const [isCreateRoleDialogOpen, setIsCreateRoleDialogOpen] = useState(false);
-  const queryClient = useQueryClient();
-  const [yamlContent, setYamlContent] = useState("");
   const initialData = `apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -81,15 +72,13 @@ rules:
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get", "list", "watch"]`;
+
   // Get Roles
-  const {
-    data: roles,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ["roles"],
-    queryFn: () => apiClient.getRoles(),
+  const { data: roles, isLoading, isError } = useRoles();
+  const createRoleMutation = useCreateRole({
+    onSuccess: () => setIsCreateRoleDialogOpen(false),
   });
+  const deleteRolesMutation = useDeleteRoles();
 
   const columns: ColumnDef<Role>[] = [
     {
@@ -195,28 +184,6 @@ rules:
     }
   };
 
-  const routeToDetails = (namespace: string, name: string) => {
-    router.push(`/dashboard/roles/${namespace}/${name}`);
-    toast(`Routing to details page for ${name}`);
-  };
-
-  const createRoleMutation = useMutation({
-    mutationFn: (roleData: any) => apiClient.createRole(roleData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["roles"] });
-      setIsCreateRoleDialogOpen(false);
-      toast.success(`Role has been created successfully`);
-    },
-    onError: (error: any) => {
-      if (error.response && error.response.status === 409) {
-        toast.error(
-          `Error: A role with this name already exists in the specified namespace.`
-        );
-      } else {
-        toast.error(`Error creating role: ${error.message}`);
-      }
-    },
-  });
   const handleCreateRole = (data: z.infer<typeof roleSchema>) => {
     const existingRole = roles.find(
       (role) =>
@@ -251,40 +218,10 @@ rules:
     deleteRolesMutation.mutate(row);
   };
 
-  const deleteRolesMutation = useMutation({
-    mutationFn: (roles: Role | Role[]) => {
-      if (Array.isArray(roles)) {
-        return Promise.all(
-          roles.map((role) =>
-            apiClient.deleteRole(role.metadata.namespace, role.metadata.name)
-          )
-        );
-      } else {
-        return apiClient.deleteRole(
-          roles.metadata.namespace,
-          roles.metadata.name
-        );
-      }
-    },
-    onSuccess: (_, roles) => {
-      queryClient.invalidateQueries({ queryKey: ["roles"] });
-      const message = Array.isArray(roles)
-        ? `Selected roles have been deleted successfully`
-        : `Role ${roles.metadata.name} has been deleted successfully`;
-      toast(message);
-    },
-    onSettled: (data, error, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["roles"] });
-      if (error) {
-        toast(`Error deleting role(s): ${error.message}`);
-      } else {
-        const message = Array.isArray(variables)
-          ? `Selected roles have been deleted successfully`
-          : `Role ${variables.metadata.name} has been deleted successfully`;
-        toast(message);
-      }
-    },
-  });
+  const routeToDetails = (namespace: string, name: string) => {
+    router.push(`/dashboard/roles/${namespace}/${name}`);
+    toast(`Routing to details page for ${name}`);
+  };
 
   if (isError) {
     return <div>Error</div>;
@@ -318,7 +255,7 @@ rules:
               </TabsTrigger>
             </TabsList>
             <TabsContent value="form">
-              <CreateRole onSubmit={handleCreateRole} />
+              <CreateRoleDialog onSubmit={handleCreateRole} />
             </TabsContent>
             <TabsContent value="yaml">
               <YamlEditor

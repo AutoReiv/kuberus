@@ -59,7 +59,7 @@ const roleSchema = z
     }
   });
 
-const CreateRole = ({ onSubmit }) => {
+const CreateRoleDialog = ({ onSubmit }) => {
   const [showApiGroup, setShowApiGroup] = useState(false);
 
   const {
@@ -341,4 +341,4 @@ const CreateRole = ({ onSubmit }) => {
   );
 };
 
-export default CreateRole;
+export default CreateRoleDialog;
