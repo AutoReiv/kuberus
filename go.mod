@@ -7,7 +7,6 @@ toolchain go1.23.0
 require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/golang-jwt/jwt/v5 v5.2.1
-	github.com/labstack/echo-jwt/v4 v4.2.0
 	github.com/labstack/echo/v4 v4.12.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.27.0

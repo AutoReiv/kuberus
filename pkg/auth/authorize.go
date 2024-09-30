@@ -189,7 +189,6 @@ func HasPermission(username, permission string) bool {
 	}
 	return count > 0
 }
-
 // AssignRoleToUser assigns a role to a user.
 func AssignRoleToUser(username, roleName string) error {
 	_, err := db.DB.Exec("INSERT INTO user_roles (user_id, role_id) VALUES (?, (SELECT id FROM roles WHERE name = ?))", username, roleName)

@@ -60,8 +60,8 @@ func UserManagementHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 
 // HandleCreateUser creates a new user and assigns a specified role.
 func HandleCreateUser(c echo.Context, clientset *kubernetes.Clientset) error {
-	username := c.Get("username").(string)
-	if !auth.HasPermission(username, "create_user") {
+	requestingUsername := c.Get("username").(string)
+	if !auth.HasPermission(requestingUsername, "create_user") {
 		return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to create users")
 	}
 
@@ -78,7 +78,7 @@ func HandleCreateUser(c echo.Context, clientset *kubernetes.Clientset) error {
 	}
 
 	// Sanitize user input
-	username = utils.SanitizeInput(req.Username)
+	username := utils.SanitizeInput(req.Username)
 	password := utils.SanitizeInput(req.Password)
 	role := utils.SanitizeInput(req.Role)
 
@@ -107,8 +107,8 @@ func HandleCreateUser(c echo.Context, clientset *kubernetes.Clientset) error {
 
 // handleUpdateUser updates an existing user's details.
 func handleUpdateUser(c echo.Context) error {
-	username := c.Get("username").(string)
-	if !auth.HasPermission(username, "update_user") {
+	requestingUsername := c.Get("username").(string)
+	if !auth.HasPermission(requestingUsername, "update_user") {
 		return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to update users")
 	}
 
@@ -124,7 +124,7 @@ func handleUpdateUser(c echo.Context) error {
 	}
 
 	// Sanitize user input
-	username = utils.SanitizeInput(req.Username)
+	username := utils.SanitizeInput(req.Username)
 	password := utils.SanitizeInput(req.Password)
 
 	// Validate password strength
@@ -144,8 +144,8 @@ func handleUpdateUser(c echo.Context) error {
 }
 
 func handleDeleteUser(c echo.Context) error {
-	username := c.Get("username").(string)
-	if !auth.HasPermission(username, "delete_user") {
+	requestingUsername := c.Get("username").(string)
+	if !auth.HasPermission(requestingUsername, "delete_user") {
 		return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to delete users")
 	}
 
@@ -155,7 +155,7 @@ func handleDeleteUser(c echo.Context) error {
 	}
 
 	// Sanitize user input
-	username = utils.SanitizeInput(req.Username)
+	username := utils.SanitizeInput(req.Username)
 
 	// Delete user
 	if err := auth.DeleteUser(username); err != nil {
@@ -165,7 +165,6 @@ func handleDeleteUser(c echo.Context) error {
 	utils.Logger.Info("User account deleted successfully", zap.String("username", username))
 	utils.LogAuditEvent(c.Request(), "delete_user", username, "N/A")
 	return c.JSON(http.StatusOK, map[string]string{"message": "User account deleted successfully"})
-
 }
 
 func handleListUsers(c echo.Context) error {
