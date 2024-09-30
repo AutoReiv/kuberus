@@ -1,64 +1,45 @@
 "use client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { ArrowUpDown, Package2 } from "lucide-react";
+
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { ArrowUpDown, Package2, Plus, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/lib/apiClient";
 import GenericDataTable from "@/components/GenericDataTable";
 import { ColumnDef } from "@tanstack/react-table";
-
-interface AuditLog {
-  id: number;
-  action: string;
-  resource_name: string;
-  namespace: string;
-  timestamp: string;
-  hash: string;
-}
+import { ResponsiveDialog } from "@/components/ResponsiveDialog";
+import { useState } from "react";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { motion } from "framer-motion";
+import CreateUserDialog from "./_components/CreateUserDialog";
 
 export interface User {
   username: string;
 }
 
-const getActionVariant = (
-  action: string
-): "default" | "secondary" | "destructive" | "outline" => {
-  switch (action.toLowerCase()) {
-    case "create":
-      return "default";
-    case "update":
-      return "secondary";
-    case "delete":
-      return "destructive";
-    default:
-      return "outline";
-  }
-};
-
-const formatRelativeTime = (timestamp: string): string => {
-  const now = new Date();
-  const logTime = new Date(timestamp);
-  const diffInSeconds = Math.floor((now.getTime() - logTime.getTime()) / 1000);
-
-  if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-  return `${Math.floor(diffInSeconds / 86400)}d ago`;
-};
-
 const Admin = () => {
-  const {
-    data: auditLogs,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["auditLog"],
-    queryFn: () => apiClient.getAuditLogs(),
-  });
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedRow, setSelectedRow] = useState(null);
+  const queryClient = useQueryClient();
+  const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
 
-  const { data: users, isFetched: usersFetched } = useQuery({
+  const {
+    data: users,
+    isFetched: usersFetched,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["users"],
     queryFn: () => apiClient.getAdminUsers(),
   });
@@ -81,50 +62,78 @@ const Admin = () => {
     },
   ];
 
+  const handleCreateUser = (userData: {
+    username: string;
+    password: string;
+    passwordConfirm: string;
+  }) => {
+    // Handle the creation of the user here
+    // You can use the userData object to create the user
+    // For example, you can send a request to your backend to create the user
+    // and then update the users state with the new user
+    // You can also use the queryClient to invalidate the users query to refetch the data
+    // and update the UI
+  };
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (username: string) => apiClient.getAdminUserDelete(username),
+    onMutate: (username) => {
+      toast.loading(`Deleting user ${username}...`);
+      // Optionally, you can implement optimistic updates here
+    },
+    onSuccess: (_, username) => {
+      toast.dismiss();
+      toast.success(`User ${username} has been deleted successfully.`);
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (error) => {
+      toast.dismiss();
+      toast.error(
+        error.message || "An unexpected error occurred while deleting the user."
+      );
+    },
+  });
+
+  const handleDeleteUser = (username: string) => {
+    deleteUserMutation.mutate(username);
+  };
+
   return (
     <div className="flex min-h-screen w-full flex-col">
-
       <main className="flex flex-1 flex-col gap-4">
-        <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
-          {isLoading && !usersFetched ? (
-            <p>Loading Table...</p>
-          ) : error ? (
-            <p>Error loading users</p>
-          ) : (
-            <GenericDataTable
-              className="col-span-2"
-              data={users}
-              columns={columns}
-              title="Users"
-              description="Manage and view all registered users in the system"
-            ></GenericDataTable>
-          )}
-          <Card>
-            <CardHeader>
-              <CardTitle>Audit Log</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-1">
-              {isLoading ? (
-                <p>Loading audit logs...</p>
-              ) : error ? (
-                <p>Error loading audit logs</p>
-              ) : (
-                auditLogs?.slice(0, 10).map((log: AuditLog) => (
-                  <div
-                    key={log.id}
-                    className="flex justify-between items-center text-sm hover:bg-muted rounded-md p-1"
-                  >
-                    <span>{log.action}</span>
-                    <span>{log.resource_name}</span>
-                    <Badge variant={getActionVariant(log.action)}>
-                      {formatRelativeTime(log.timestamp)}
-                    </Badge>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold tracking-tight">Admin Users</h2>
+          <Button onClick={() => setIsCreateUserDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create User
+          </Button>
+          <CreateUserDialog
+            isOpen={isCreateUserDialogOpen}
+            setIsOpen={setIsCreateUserDialogOpen}
+            onCreateUser={handleCreateUser}
+          />
         </div>
+        {isLoading && !usersFetched ? (
+          <p>Loading Table...</p>
+        ) : isError ? (
+          <p>Error loading users</p>
+        ) : (
+          <GenericDataTable
+            className="col-span-2"
+            data={users}
+            columns={columns}
+            enableGridView={false}
+            rowActions={(row) => [
+              <Trash
+                key="delete"
+                size={16}
+                onClick={() => handleDeleteUser(row.username)}
+              >
+                Delete
+              </Trash>,
+            ]}
+          ></GenericDataTable>
+        )}
       </main>
     </div>
   );

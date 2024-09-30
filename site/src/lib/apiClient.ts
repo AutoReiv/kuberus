@@ -45,7 +45,7 @@ class ApiClient {
     return this.fetch(ENDPOINTS.RBAC.ROLES.BASE);
   }
 
-  async deleteRole(namespace: string, name: string) {
+  async deleteRoles(namespace: string, name: string) {
     const response = await this.fetch(
       ENDPOINTS.RBAC.ROLES.DELETE(namespace, name),
       {
@@ -58,6 +58,13 @@ class ApiClient {
 
   async getRoleDetails(namespace: string, name: string) {
     return this.fetch(ENDPOINTS.RBAC.ROLES.DETAILS(namespace, name));
+  }
+
+  async createRoles(roleData: any) {
+    return this.fetch(ENDPOINTS.RBAC.ROLES.CREATE, {
+      method: "POST",
+      body: JSON.stringify(roleData),
+    });
   }
 
   async updateRole(namespace: string, name: string, roleData: any) {
@@ -79,11 +86,11 @@ class ApiClient {
     return this.fetch(ENDPOINTS.RBAC.ROLEBINDINGS.BASE);
   }
 
-  async getRoleBindingDetails(namespace: string, name: string) {
+  async getRoleBindingsDetails(namespace: string, name: string) {
     return this.fetch(ENDPOINTS.RBAC.ROLEBINDINGS.DETAILS(namespace, name));
   }
 
-  async deleteRoleBinding(namespace: string, name: string) {
+  async deleteRoleBindings(namespace: string, name: string) {
     const response = await this.fetch(
       ENDPOINTS.RBAC.ROLEBINDINGS.DELETE(namespace, name),
       {
@@ -93,23 +100,32 @@ class ApiClient {
 
     return response;
   }
+
+  async createRoleBindings(roleBindingData: any) {
+    return this.fetch(ENDPOINTS.RBAC.ROLEBINDINGS.BASE, {
+      method: "POST",
+      body: JSON.stringify(roleBindingData),
+    });
+  }
+
   // ClusterRole-related methods
   async getClusterRoles() {
     return this.fetch(ENDPOINTS.RBAC.CLUSTERROLES.BASE);
   }
 
-  async getClusterRoleDetails(name: string) {
+  async getClusterRolesDetails(name: string) {
     return this.fetch(ENDPOINTS.RBAC.CLUSTERROLES.DETAILS(name));
   }
 
-  async createClusterRole(clusterRoleData: any) {
+  async createClusterRoles(clusterRoleData: any) {
     return this.fetch(ENDPOINTS.RBAC.CLUSTERROLES.CREATE, {
       method: "POST",
       body: JSON.stringify(clusterRoleData),
     });
   }
 
-  async deleteClusterRole(name: string) {
+  async deleteClusterRoles(name: string) {
+    console.log("Deleting cluster role:", name);
     const response = await this.fetch(
       ENDPOINTS.RBAC.CLUSTERROLES.DELETE(name),
       {
@@ -125,18 +141,18 @@ class ApiClient {
     return this.fetch(ENDPOINTS.RBAC.CLUSTERROLEBINDINGS.BASE);
   }
 
-  async getClusterRoleBindingDetails(name: string) {
+  async getClusterRoleBindingsDetails(name: string) {
     return this.fetch(ENDPOINTS.RBAC.CLUSTERROLEBINDINGS.DETAILS(name));
   }
 
-  async createClusterRoleBinding(clusterRoleBindingData: any) {
+  async createClusterRoleBindings(clusterRoleBindingData: any) {
     return this.fetch(ENDPOINTS.RBAC.CLUSTERROLEBINDINGS.CREATE, {
       method: "POST",
       body: JSON.stringify(clusterRoleBindingData),
     });
   }
 
-  async deleteClusterRoleBinding(name: string) {
+  async deleteClusterRoleBindings(name: string) {
     const response = await this.fetch(
       ENDPOINTS.RBAC.CLUSTERROLEBINDINGS.DELETE(name),
       {
@@ -152,27 +168,27 @@ class ApiClient {
     return this.fetch(ENDPOINTS.USER_MANAGEMENT.USERS.BASE);
   }
 
-  async createUser(userData: any) {
-    return this.fetch(ENDPOINTS.ADMIN.USERS(), {
+  async getAdminCreateUser(userData: any) {
+    return this.fetch(ENDPOINTS.ADMIN.CREATE, {
       method: "POST",
       body: JSON.stringify(userData),
     });
   }
 
   async getAdminUsers() {
-    return this.fetch(ENDPOINTS.ADMIN.USERS(), {
+    return this.fetch(ENDPOINTS.ADMIN.LIST, {
       method: "GET",
     });
   }
 
   async getAdminUserDelete(username: string) {
-    return this.fetch(ENDPOINTS.ADMIN.USERS(username), {
+    return this.fetch(ENDPOINTS.ADMIN.DELETE, {
       method: "DELETE",
     });
   }
 
   async getAdminUserUpdate(username: string, userData: any) {
-    return this.fetch(ENDPOINTS.ADMIN.USERS(username), {
+    return this.fetch(ENDPOINTS.ADMIN.UPDATE, {
       method: "PUT",
       body: JSON.stringify(userData),
     });
@@ -187,19 +203,22 @@ class ApiClient {
     return this.fetch(ENDPOINTS.K8S_RESOURCES.NAMESPACES);
   }
 
-  async createNamespace(namespaceData: any) {
+  async createNamespaces(namespaceData: any) {
     return this.fetch(ENDPOINTS.K8S_RESOURCES.NAMESPACES, {
       method: "POST",
       body: JSON.stringify({ metadata: { name: namespaceData } }),
     });
   }
 
-  async deleteNamespace(namespace: string) {
-    await this.fetch(ENDPOINTS.K8S_RESOURCES.DELETENAMESPACE(namespace), {
-      method: "DELETE",
-    });
+  async deleteNamespaces(namespace) {
+    const response = await this.fetch(
+      ENDPOINTS.K8S_RESOURCES.DELETENAMESPACE(namespace),
+      {
+        method: "DELETE",
+      }
+    );
 
-    return true;
+    return response;
   }
 
   // Audit-related methods
@@ -229,20 +248,6 @@ class ApiClient {
 
   async getUserDetails(username: string) {
     return this.fetch(ENDPOINTS.USER_MANAGEMENT.USERS.DETAILS(username));
-  }
-
-  async createRole(roleData: any) {
-    return this.fetch(ENDPOINTS.RBAC.ROLES.CREATE, {
-      method: "POST",
-      body: JSON.stringify(roleData),
-    });
-  }
-
-  async createRoleBinding(roleBindingData: any) {
-    return this.fetch(ENDPOINTS.RBAC.ROLEBINDINGS.BASE, {
-      method: "POST",
-      body: JSON.stringify(roleBindingData),
-    });
   }
 }
 

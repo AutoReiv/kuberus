@@ -8,19 +8,13 @@ import { ColumnDef } from "@tanstack/react-table";
 import { SkeletonPage } from "@/components/SkeletonPage";
 import { pageVariants } from "../layout";
 import { motion } from "framer-motion";
+import { useGroups } from "@/hooks/useGroups";
 
 type Group = string;
 
 const Groups = () => {
   // Get Groups
-  const {
-    data: groups,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ["groups"],
-    queryFn: () => apiClient.getGroups(),
-  });
+  const { data: groups, isLoading, isError } = useGroups();
 
   if (isError) {
     return <div>Error</div>;
@@ -32,7 +26,7 @@ const Groups = () => {
       id: "name",
       header: "Name",
       cell: ({ row }) => <div>{row.original}</div>,
-    }
+    },
   ];
 
   return (
@@ -51,7 +45,7 @@ const Groups = () => {
           columns={columns}
           enableGridView={false}
           title="Groups"
-          description="Groups are used to group users together. You can create groups to manage users and permissions." 
+          description="Groups are used to group users together. You can create groups to manage users and permissions."
         ></GenericDataTable>
       )}
     </motion.div>

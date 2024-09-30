@@ -10,6 +10,7 @@ import { pageVariants } from "../layout";
 import { motion } from "framer-motion";
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useUsers } from "@/hooks/useUsers";
 
 type User = {
   username: string;
@@ -17,15 +18,8 @@ type User = {
 };
 
 const Users = () => {
-  const router = useRouter()
-  const {
-    data: users,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => apiClient.getUsers(),
-  });
+  const router = useRouter();
+  const { data: users, isLoading, isError } = useUsers();
 
   const columns: ColumnDef<User>[] = [
     {
@@ -84,9 +78,7 @@ const Users = () => {
           enableFiltering
           enablePagination
           enableGridView
-          onRowClick={(row) =>
-            routeToDetails(row.username)
-          }
+          onRowClick={(row) => routeToDetails(row.username)}
         />
       )}
     </motion.div>
