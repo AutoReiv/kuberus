@@ -2,7 +2,6 @@ package rbac
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"rbac/pkg/auth"
 	"rbac/pkg/utils"
@@ -64,7 +63,7 @@ func handleCreateRoleBinding(c echo.Context, clientset *kubernetes.Clientset) er
 		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to decode request body", err, "Failed to bind create role binding request")
 	}
 
-	if err := validateRoleBinding(&roleBinding); err != nil {
+	if err := utils.ValidateRoleBinding(&roleBinding); err != nil {
 		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid role binding", err, "Invalid role binding data")
 	}
 
@@ -88,7 +87,7 @@ func handleUpdateRoleBinding(c echo.Context, clientset *kubernetes.Clientset) er
 		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to decode request body", err, "Failed to bind update role binding request")
 	}
 
-	if err := validateRoleBinding(&roleBinding); err != nil {
+	if err := utils.ValidateRoleBinding(&roleBinding); err != nil {
 		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid role binding", err, "Invalid role binding data")
 	}
 
@@ -149,18 +148,4 @@ func RoleBindingDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc
 		utils.Logger.Info("Fetched role binding details", zap.String("roleBindingName", roleBindingName), zap.String("namespace", namespace))
 		return c.JSON(http.StatusOK, roleBinding)
 	}
-}
-
-// validateRoleBinding ensures that the role binding is valid.
-func validateRoleBinding(roleBinding *rbacv1.RoleBinding) error {
-	if roleBinding.Name == "" {
-		return errors.New("role binding name is required")
-	}
-	if roleBinding.RoleRef.Name == "" {
-		return errors.New("role reference name is required")
-	}
-	if len(roleBinding.Subjects) == 0 {
-		return errors.New("at least one subject is required")
-	}
-	return nil
 }

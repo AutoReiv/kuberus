@@ -5,7 +5,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// LogAndRespondError logs the error with additional context and sends a JSON response.
+// LogAndRespondError logs the error and sends a JSON response with the error message.
 func LogAndRespondError(c echo.Context, statusCode int, userMessage string, err error, logMessage string) error {
 	requestID := c.Response().Header().Get(echo.HeaderXRequestID)
 	Logger.Error(logMessage,
