@@ -36,9 +36,9 @@ func RolesHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 		case http.MethodGet:
 			return handleGetRoles(c, clientset, namespace)
 		case http.MethodPost:
-			return handleCreateRole(c, clientset, namespace)
+			return handleCreateRole(c, clientset)
 		case http.MethodPut:
-			return handleUpdateRole(c, clientset, namespace)
+			return handleUpdateRole(c, clientset)
 		case http.MethodDelete:
 			return handleDeleteRole(c, clientset, namespace, c.QueryParam("name"))
 		default:
@@ -46,6 +46,7 @@ func RolesHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 		}
 	}
 }
+
 // IsRoleActive checks if a role is active by looking for any role bindings that reference it.
 func IsRoleActive(clientset *kubernetes.Clientset, roleName, namespace string) (bool, error) {
 	// Check RoleBindings in the namespace
@@ -121,7 +122,7 @@ func listAllNamespacesRoles(c echo.Context, clientset *kubernetes.Clientset) err
 }
 
 // handleCreateRole handles creating a new role in a specific namespace.
-func handleCreateRole(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
+func handleCreateRole(c echo.Context, clientset *kubernetes.Clientset) error {
 	var role rbacv1.Role
 	if err := c.Bind(&role); err != nil {
 		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to decode request body", err, "Failed to bind create role request")
@@ -130,6 +131,9 @@ func handleCreateRole(c echo.Context, clientset *kubernetes.Clientset, namespace
 	if err := validateRole(&role); err != nil {
 		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid role", err, "Invalid role data")
 	}
+
+	// Use the namespace from the role object
+	namespace := role.Namespace
 
 	createdRole, err := clientset.RbacV1().Roles(namespace).Create(context.TODO(), &role, metav1.CreateOptions{})
 	if err != nil {
@@ -142,7 +146,7 @@ func handleCreateRole(c echo.Context, clientset *kubernetes.Clientset, namespace
 }
 
 // handleUpdateRole handles updating an existing role in a specific namespace.
-func handleUpdateRole(c echo.Context, clientset *kubernetes.Clientset, namespace string) error {
+func handleUpdateRole(c echo.Context, clientset *kubernetes.Clientset) error {
 	var role rbacv1.Role
 	if err := c.Bind(&role); err != nil {
 		return utils.LogAndRespondError(c, http.StatusBadRequest, "Failed to decode request body", err, "Failed to bind update role request")
@@ -151,6 +155,9 @@ func handleUpdateRole(c echo.Context, clientset *kubernetes.Clientset, namespace
 	if err := validateRole(&role); err != nil {
 		return utils.LogAndRespondError(c, http.StatusBadRequest, "Invalid role", err, "Invalid role data")
 	}
+
+	// Use the namespace from the role object
+	namespace := role.Namespace
 
 	updatedRole, err := clientset.RbacV1().Roles(namespace).Update(context.TODO(), &role, metav1.UpdateOptions{})
 	if err != nil {
@@ -202,7 +209,6 @@ func RoleDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 		return getRoleDetails(c, clientset)
 	}
 }
-// getRoleDetails fetches detailed information about a specific role
 
 // getRoleDetails fetches detailed information about a specific role.
 func getRoleDetails(c echo.Context, clientset *kubernetes.Clientset) error {
@@ -237,7 +243,7 @@ func getRoleDetails(c echo.Context, clientset *kubernetes.Clientset) error {
 		RoleBindings: associatedBindings,
 		Active:       active,
 	}
-
+	
 	utils.Logger.Info("Fetched role details", zap.String("roleName", roleName), zap.String("namespace", namespace))
 	return c.JSON(http.StatusOK, response)
 }
