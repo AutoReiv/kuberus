@@ -3,8 +3,6 @@ package rbac
 import (
 	"context"
 	"net/http"
-	"rbac/pkg/auth"
-	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -23,34 +21,24 @@ type GroupDetailsResponse struct {
 // GroupDetailsHandler handles requests for detailed information about a specific group.
 func GroupDetailsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		username := c.Get("username").(string)
-		isAdmin, ok := c.Get("isAdmin").(bool)
-		if (!ok) {
-			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
-		}
-
-		if (!isAdmin && !auth.HasPermission(username, "view_group_details")) {
-			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to view group details")
-		}
-
 		groupName := c.QueryParam("groupName")
-		if (groupName == "") {
+		if groupName == "" {
 			return echo.NewHTTPError(http.StatusBadRequest, "Group name is required")
 		}
 
 		roleBindings, err := clientset.RbacV1().RoleBindings("").List(context.TODO(), metav1.ListOptions{})
-		if (err != nil) {
-			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing role bindings", err, "Failed to list role bindings")
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Error listing role bindings: "+err.Error())
 		}
 
 		clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
-		if (err != nil) {
-			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing cluster role bindings", err, "Failed to list cluster role bindings")
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Error listing cluster role bindings: "+err.Error())
 		}
 
 		clusterRoles, err := clientset.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
-		if (err != nil) {
-			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing cluster roles", err, "Failed to list cluster roles")
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Error listing cluster roles: "+err.Error())
 		}
 
 		groupDetails := extractGroupDetails(groupName, roleBindings.Items, clusterRoleBindings.Items, clusterRoles.Items)
@@ -66,7 +54,7 @@ func extractGroupDetails(groupName string, roleBindings []rbacv1.RoleBinding, cl
 
 	for _, rb := range roleBindings {
 		for _, subject := range rb.Subjects {
-			if (subject.Kind == rbacv1.GroupKind && subject.Name == groupName) {
+			if subject.Kind == rbacv1.GroupKind && subject.Name == groupName {
 				groupRoleBindings = append(groupRoleBindings, rb)
 			}
 		}
@@ -74,7 +62,7 @@ func extractGroupDetails(groupName string, roleBindings []rbacv1.RoleBinding, cl
 
 	for _, crb := range clusterRoleBindings {
 		for _, subject := range crb.Subjects {
-			if (subject.Kind == rbacv1.GroupKind && subject.Name == groupName) {
+			if subject.Kind == rbacv1.GroupKind && subject.Name == groupName {
 				groupClusterRoleBindings = append(groupClusterRoleBindings, crb)
 			}
 		}
@@ -83,7 +71,7 @@ func extractGroupDetails(groupName string, roleBindings []rbacv1.RoleBinding, cl
 	// Collect ClusterRoles associated with the group's ClusterRoleBindings
 	for _, crb := range groupClusterRoleBindings {
 		for _, cr := range clusterRoles {
-			if (cr.Name == crb.RoleRef.Name) {
+			if cr.Name == crb.RoleRef.Name {
 				groupClusterRoles = append(groupClusterRoles, cr)
 			}
 		}

@@ -3,8 +3,6 @@ package rbac
 import (
 	"context"
 	"net/http"
-	"rbac/pkg/auth"
-	"rbac/pkg/utils"
 
 	"github.com/labstack/echo/v4"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -15,24 +13,14 @@ import (
 // GroupsHandler handles requests related to listing groups.
 func GroupsHandler(clientset *kubernetes.Clientset) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		username := c.Get("username").(string)
-		isAdmin, ok := c.Get("isAdmin").(bool)
-		if (!ok) {
-			return echo.NewHTTPError(http.StatusForbidden, "Unable to determine admin status")
-		}
-
-		if (!isAdmin && !auth.HasPermission(username, "list_groups")) {
-			return echo.NewHTTPError(http.StatusForbidden, "You do not have permission to list groups")
-		}
-
 		roleBindings, err := clientset.RbacV1().RoleBindings("").List(context.TODO(), metav1.ListOptions{})
-		if (err != nil) {
-			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing role bindings", err, "Failed to list role bindings")
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Error listing role bindings: "+err.Error())
 		}
 
 		clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
-		if (err != nil) {
-			return utils.LogAndRespondError(c, http.StatusInternalServerError, "Error listing cluster role bindings", err, "Failed to list cluster role bindings")
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Error listing cluster role bindings: "+err.Error())
 		}
 
 		groups := extractGroupsFromBindings(roleBindings.Items, clusterRoleBindings.Items)
@@ -46,7 +34,7 @@ func extractGroupsFromBindings(roleBindings []rbacv1.RoleBinding, clusterRoleBin
 
 	for _, rb := range roleBindings {
 		for _, subject := range rb.Subjects {
-			if (subject.Kind == rbacv1.GroupKind) {
+			if subject.Kind == rbacv1.GroupKind {
 				groupSet[subject.Name] = struct{}{}
 			}
 		}
@@ -54,7 +42,7 @@ func extractGroupsFromBindings(roleBindings []rbacv1.RoleBinding, clusterRoleBin
 
 	for _, crb := range clusterRoleBindings {
 		for _, subject := range crb.Subjects {
-			if (subject.Kind == rbacv1.GroupKind) {
+			if subject.Kind == rbacv1.GroupKind {
 				groupSet[subject.Name] = struct{}{}
 			}
 		}
