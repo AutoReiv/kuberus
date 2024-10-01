@@ -169,40 +169,6 @@ const SideNav = ({ onExpand }: { onExpand: (expanded: boolean) => void }) => {
             ))}
           </nav>
         </div>
-        <motion.div
-          className="mt-auto p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <div className="flex items-center gap-2">
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.span
-                        className="text-sm font-medium flex items-center gap-4"
-                        initial={{ opacity: 0, width: 0 }}
-                        animate={{ opacity: 1, width: "auto" }}
-                        exit={{ opacity: 0, width: 0 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <Link
-                          href="/dashboard/admin"
-                          className="flex items-center gap-4"
-                        >
-                          <Blend className="h-4 w-4" />
-                          Suhhhhh
-                        </Link>
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </CardTitle>
-            </CardHeader>
-          </Card>
-        </motion.div>
       </div>
     </motion.div>
   );
