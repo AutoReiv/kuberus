@@ -88,6 +88,9 @@ const CreateRoleDialog = ({ onSubmit }) => {
     queryFn: () => apiClient.getNamespaces(),
   });
 
+
+  console.log(namespaces, 'namespaces')
+
   const { data: resources } = useQuery({
     queryKey: ["resources"],
     queryFn: () => apiClient.getResources(),
@@ -166,6 +169,8 @@ const CreateRoleDialog = ({ onSubmit }) => {
     </TooltipProvider>
   );
 
+
+
   return (
     <div className="w-full mx-auto">
       <CardHeader className="py-2 px-0">
@@ -200,7 +205,7 @@ const CreateRoleDialog = ({ onSubmit }) => {
                   <SelectValue placeholder="Select namespace" />
                 </SelectTrigger>
                 <SelectContent>
-                  {namespaces?.map((namespace) => (
+                  {namespaces?.items.map((namespace) => (
                     <SelectItem
                       key={namespace.metadata.name}
                       value={namespace.metadata.name}

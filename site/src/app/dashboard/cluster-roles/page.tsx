@@ -86,7 +86,7 @@ const ClusterRoles = () => {
         <SkeletonPage></SkeletonPage>
       ) : (
         <GenericDataTable
-          data={clusterRoles}
+          data={clusterRoles.items}
           columns={columns}
           enableGridView={false}
           rowActions={(row) => [

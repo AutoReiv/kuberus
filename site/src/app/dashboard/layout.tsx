@@ -1,7 +1,7 @@
 "use client";
+
 import Link from "next/link";
 import {
-  CircleUser,
   Home,
   LineChart,
   Menu,
@@ -25,8 +25,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -50,12 +48,12 @@ const Layout = ({
 }>) => {
   const { setTheme } = useTheme();
   const [isSideNavExpanded, setIsSideNavExpanded] = useState(false);
-  const pathname = usePathname(); 
+  const pathname = usePathname();
   const router = useRouter();
-  
+
   useEffect(() => {
-    if (pathname === '/dashboard') {
-      router.push('/dashboard/roles');
+    if (pathname === "/dashboard") {
+      router.push("/dashboard/roles");
     }
   }, [pathname, router]);
 
@@ -158,16 +156,7 @@ const Layout = ({
               </div>
             </SheetContent>
           </Sheet>
-          <div className="w-full flex-1">
-            <nav className="hidden flex-col gap-6 md:flex md:flex-row md:items-center md:gap-4 md:text-sm lg:gap-6">
-              <Link
-                href="#"
-                className="text-foreground transition-colors hover:text-foreground"
-              >
-                Analytics
-              </Link>
-            </nav>
-          </div>
+          <div className="w-full flex-1">{/*  */}</div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon">
@@ -188,28 +177,9 @@ const Layout = ({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="icon" className="rounded-full">
-                <CircleUser className="h-5 w-5" />
-                <span className="sr-only">Toggle user menu</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuItem>Support</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Logout</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </motion.header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-          <div className="flex flex-1">
-            {/* <div className="flex flex-col items-center gap-1 text-center"> */}
-            {children}
-          </div>
+          <div className="flex flex-1">{children}</div>
         </main>
       </motion.div>
     </motion.div>

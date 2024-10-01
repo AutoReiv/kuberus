@@ -129,7 +129,7 @@ const RoleBindings = () => {
         <SkeletonPage></SkeletonPage>
       ) : (
         <GenericDataTable
-          data={roleBindings}
+          data={roleBindings.items}
           columns={columns}
           enableGridView={false}
           rowActions={(row) => [

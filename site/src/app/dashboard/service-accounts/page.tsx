@@ -120,7 +120,7 @@ const ServiceAccounts = () => {
         <SkeletonPage></SkeletonPage>
       ) : (
         <GenericDataTable
-          data={serviceAccounts}
+          data={serviceAccounts.items}
           columns={columns}
           enableGridView={false}
           title="Service Accounts"

@@ -111,7 +111,7 @@ const Namespaces = () => {
       </div>
       <GenericDataTable
         columns={columns}
-        data={namespaces}
+        data={namespaces.items}
         enableGridView={false}
         rowActions={(row) => [
           <Trash key="delete" size={20} onClick={() => onDelete(row)}>
