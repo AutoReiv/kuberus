@@ -16,10 +16,8 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<any> {
-    const token = localStorage.getItem("authToken");
     const headers = {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
       ...options.headers,
     };
 

@@ -73,12 +73,7 @@ const SideNav = ({ onExpand }: { onExpand: (expanded: boolean) => void }) => {
       name: "Groups",
       icon: <Group className="h-6 w-6" />,
       path: "/dashboard/groups",
-    },
-    {
-      name: "Users",
-      icon: <Users className="h-6 w-6" />,
-      path: "/dashboard/users",
-    },
+    }
   ];
 
   return (
