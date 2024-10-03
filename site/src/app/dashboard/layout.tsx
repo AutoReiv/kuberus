@@ -23,9 +23,7 @@ export const pageVariants = {
 
 const Layout = ({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) => {
+}) => {
   const { setTheme, theme } = useTheme();
   const [isSideNavExpanded, setIsSideNavExpanded] = useState(false);
   const pathname = usePathname();

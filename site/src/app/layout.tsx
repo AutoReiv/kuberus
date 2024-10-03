@@ -15,9 +15,7 @@ const queryClient = new QueryClient();
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}) {
   return (
     <QueryClientProvider client={queryClient}>
       <html lang="en" suppressHydrationWarning className="max-h-screen">
