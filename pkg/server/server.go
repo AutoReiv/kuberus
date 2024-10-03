@@ -86,6 +86,6 @@ func RegisterRoutes(e *echo.Echo, clientset *kubernetes.Clientset, config *Confi
 
 	// Root URL handler
 	e.GET("/", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, map[string]string{"message": "Welcome to the RBAC Manager"})
+		return c.JSON(http.StatusOK, map[string]string{"message": "Welcome to the K-RBAC Manager"})
 	})
 }
