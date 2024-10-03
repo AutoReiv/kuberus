@@ -1,6 +1,5 @@
 "use client";
-import React, { useCallback } from "react";
-import ForceGraph3D from "react-force-graph-3d";
+
 import { format } from "date-fns";
 import {
   Card,
@@ -10,7 +9,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
 import {
   Table,
   TableBody,
@@ -18,43 +16,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import SpriteText from "three-spritetext";
 import { useQuery } from "@tanstack/react-query";
-import { useTheme } from "next-themes";
 import { apiClient } from "@/lib/apiClient";
-
-interface RoleBindingDetail {
-  metadata: {
-    name: string;
-    namespace: string;
-    creationTimestamp: string;
-    resourceVersion: string;
-  };
-  subjects: {
-    kind: string;
-    name: string;
-    namespace?: string;
-  }[];
-  roleRef: {
-    kind: string;
-    name: string;
-    apiGroup: string;
-  };
-}
-
-// const fetchRoleBindingDetails = async (namespace, name) => {
-//   const URL = `http://localhost:8080/api/rolebinding/details?name=${name}&namespace=${namespace}`;
-//   const response = await fetch(URL, {
-//     method: "GET",
-//     headers: {
-//       Accept: "application/json",
-//       "Content-Type": "application/json",
-//     },
-//   });
-
-//   const data = await response.json();
-//   return data;
-// };
+import { RoleBinding } from "@/interfaces/roleBinding";
 
 const RoleBindingDetailsPage = ({
   params,
@@ -67,9 +31,9 @@ const RoleBindingDetailsPage = ({
     data: roleBindingDetails,
     isLoading,
     error
-  } = useQuery<RoleBindingDetail, Error>({
+  } = useQuery<RoleBinding, Error>({
     queryKey: ["roleDetails", namespace, name],
-    queryFn: () => apiClient.getRoleBindingDetails(namespace, name),
+    queryFn: () => apiClient.getRoleBindingsDetails(namespace, name),
   });
 
   if (isLoading) {
@@ -79,84 +43,6 @@ const RoleBindingDetailsPage = ({
   if (error) {
     return <div>Error: {error.message}</div>;
   }
-
-  interface RoleBindingForceGraphProps {
-    roleBinding: RoleBindingDetail;
-  }
-
-  const RoleBindingForceGraph: React.FC<RoleBindingForceGraphProps> = ({
-    roleBinding,
-  }) => {
-    const { theme } = useTheme();
-
-    const getNodeColor = useCallback(
-      (node) => {
-        const colors = {
-          light: {
-            1: "#0ea5e9", // sky-500
-            2: "#22c55e", // green-500
-            3: "#f59e0b", // amber-500
-          },
-          dark: {
-            1: "#0284c7", // sky-600
-            2: "#16a34a", // green-600
-            3: "#d97706", // amber-600
-          },
-        };
-        return colors[theme][node.group];
-      },
-      [theme]
-    );
-
-    const graphData = {
-      nodes: [
-        {
-          id: "roleBinding",
-          group: 1,
-          label: `RoleBinding: ${roleBinding.metadata.name}`,
-        },
-        {
-          id: "role",
-          group: 2,
-          label: `${roleBinding.roleRef.kind}: ${roleBinding.roleRef.name}`,
-        },
-        ...roleBinding.subjects.map((subject, index) => ({
-          id: `subject-${index}`,
-          group: 3,
-          label: `${subject.kind}: ${subject.name}`,
-        })),
-      ],
-      links: [
-        { source: "roleBinding", target: "role" },
-        ...roleBinding.subjects.map((_, index) => ({
-          source: "roleBinding",
-          target: `subject-${index}`,
-        })),
-      ],
-    };
-
-    return (
-      <ForceGraph3D
-        width={800}
-        height={600}
-        graphData={graphData}
-        nodeLabel="label"
-        nodeThreeObjectExtend={true}
-        nodeThreeObject={(node) => {
-          const sprite = new SpriteText(node.label);
-          sprite.color = getNodeColor(node);
-          sprite.textHeight = 8;
-          return sprite;
-        }}
-        nodeAutoColorBy={getNodeColor}
-        linkColor={() => theme === "dark" ? "var(--secondary)" : "var(--muted)"} // gray-600 for dark, gray-400 for light
-        backgroundColor={theme === "dark" ? "#1f2937" : "#f3f4f6"} // gray-800 for dark, gray-100 for light
-        linkDirectionalParticles={7}
-        linkDirectionalParticleSpeed={0.001}
-        d3VelocityDecay={0.5}
-      />
-    );
-  };
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -286,7 +172,6 @@ const RoleBindingDetailsPage = ({
                 </Card>
               </TabsContent>
               <TabsContent value="graph">
-                {/* <RoleBindingForceGraph roleBinding={roleBindingDetails} /> */}
 
               </TabsContent>
             </Tabs>

@@ -10,6 +10,7 @@ export interface RoleBinding {
     kind: string;
     apiGroup: string;
     name: string;
+    namespace?: string;
   }[];
   roleRef: {
     apiGroup: string;

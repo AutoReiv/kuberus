@@ -88,7 +88,7 @@ const ClusterRoleBindingDetailsPage = (params: {
     error,
   } = useQuery<ClusterRoleBindingDetail>({
     queryKey: ["clusterRoleDetails", name],
-    queryFn: () => apiClient.getClusterRoleBindingDetails(name as string),
+    queryFn: () => apiClient.getClusterRoleBindingsDetails(name as string),
   });
 
   if (isLoading) return <div>Loading...</div>;

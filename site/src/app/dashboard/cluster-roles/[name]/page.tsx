@@ -60,7 +60,7 @@ const ClusterRoleDetailsPage = ({ params }: { params: { name: string } }) => {
     error,
   } = useQuery<ClusterRoleDetails>({
     queryKey: ["clusterRoleDetails", name],
-    queryFn: () => apiClient.getClusterRoleDetails(name),
+    queryFn: () => apiClient.getClusterRolesDetails(name),
   });
 
   const itemsPerPage = 10;
