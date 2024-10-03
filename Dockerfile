@@ -16,7 +16,7 @@ RUN go mod download
 COPY . .
 
 # Build the Go application
-RUN GOOS=linux GOARCH=amd64 go build -o myapp cmd/main.go
+RUN GOOS=linux GOARCH=amd64 go build -o k-rbac cmd/main.go
 
 # Stage 2: Build the React frontend
 FROM node:18-alpine AS react-builder
@@ -49,13 +49,13 @@ RUN adduser -S myappuser
 WORKDIR /root/
 
 # Copy the built Go application from the go-builder stage
-COPY --from=go-builder /app/myapp .
+COPY --from=go-builder /app/k-rbac .
 
 # Copy the built React app from the react-builder stage
 COPY --from=react-builder /app/build /usr/share/nginx/html
 
 # Change ownership of the application binary
-RUN chown myappuser myapp
+RUN chown myappuser k-rbac
 
 # Switch to the non-root user
 USER myappuser
@@ -67,4 +67,4 @@ EXPOSE 8080 80
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD wget --spider http://localhost:8080/health || exit 1
 
 # Command to run both the Go backend and nginx
-CMD ["sh", "-c", "./myapp & nginx -g 'daemon off;'"]
+CMD ["sh", "-c", "./k-rbac & nginx -g 'daemon off;'"]
