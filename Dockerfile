@@ -61,7 +61,7 @@ RUN chown myappuser k-rbac
 USER myappuser
 
 # Expose the ports the apps run on
-EXPOSE 8080 80
+EXPOSE 80
 
 # Add a health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD wget --spider http://localhost:8080/health || exit 1
