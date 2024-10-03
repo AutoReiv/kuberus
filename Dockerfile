@@ -52,7 +52,7 @@ WORKDIR /root/
 COPY --from=go-builder /app/k-rbac .
 
 # Copy the built React app from the react-builder stage
-COPY --from=react-builder /app/build /usr/share/nginx/html
+COPY --from=react-builder /app/.next /usr/share/nginx/html
 
 # Change ownership of the application binary
 RUN chown myappuser k-rbac
