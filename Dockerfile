@@ -1,6 +1,7 @@
 # Stage 1: Build the Next.js frontend
 FROM node:18 AS frontend-builder
 
+# Set the working directory
 WORKDIR /app/frontend
 
 # Copy the frontend package.json and package-lock.json
@@ -43,9 +44,6 @@ COPY --from=frontend-builder /app/frontend/.next /usr/share/nginx/html
 
 # Copy the Nginx configuration file
 COPY nginx.conf /etc/nginx/nginx.conf
-
-# List the contents of the .next directory
-RUN ls -la .next
 
 # Expose the port Nginx is running on
 EXPOSE 80
