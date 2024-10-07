@@ -1,16 +1,15 @@
    # K-RBAC
 
-   K-RBAC is a web application designed to simplify the management of Kubernetes Role-Based Access Control (RBAC) resources. It provides an intuitive interface for viewing, creating, updating, and deleting roles, role bindings, cluster roles, and cluster role bindings within your Kubernetes cluster.
+   **Transform Your Kubernetes Management with K-RBAC!**
 
-   ## Features
+   Dive into seamless Kubernetes Role-Based Access Control with K-RBAC, the ultimate tool for managing your cluster's security with ease and precision. Whether you're a seasoned Kubernetes admin or just starting out, K-RBAC offers an intuitive interface that simplifies the complex world of roles, bindings, and permissions.
 
-   - **User Management**: Easily view and manage users and their associated roles.
-   - **Group Management**: List and manage groups and their role bindings.
-   - **Namespace Management**: Create, list, and delete namespaces effortlessly.
-   - **Role Management**: Create, update, delete, and view details of roles and role bindings.
-   - **Cluster Role Management**: Manage cluster roles and cluster role bindings with ease.
-   - **Service Account Management**: View and manage service accounts and their roles.
-   - **API Resources**: Retrieve and display all available Kubernetes API resources.
+   **Why Choose K-RBAC?**
+
+   - **Simplified Authorization**: Streamline Kubernetes authorization with an intuitive interface that makes managing roles and permissions straightforward.
+   - **Effortless Management**: Navigate and manage users, groups, and namespaces with just a few clicks.
+   - **Comprehensive Control**: Create, update, and delete roles and bindings without breaking a sweat.
+   - **Secure and Scalable**: Built to handle the demands of modern Kubernetes environments.
 
    ## Getting Started
 
@@ -22,7 +21,26 @@
 
    ### Running the Application
 
-   1. **Clone the Repository**:
-    ```bash
-    git clone git@github.com:AutoReiv/K-RBAC.git
-    cd K-RBAC
+   1. **Pull the Docker Image**:
+      ```bash
+      docker pull ghcr.io/autoreiv/k-rbac:latest
+
+   2.  **Pull the Docker Image**:
+      ```bash
+      docker run -p 80:80 ghcr.io/autoreiv/k-rbac:latest
+
+   3. **Access the Application**: 
+      Open your web browser and navigate to http://localhost:80
+
+   ### Configuration
+   
+   To connect K-RBAC to your Kubernetes cluster, ensure your kubeconfig file is located at ~/.kube/config or set the KUBECONFIG environment variable to point to your kubeconfig file.
+
+   ### Contributing
+   
+   We welcome contributions! Please feel free to submit a Pull Request.
+
+   ### License
+
+   This project is licensed under the MIT License - see the LICENSE file for details.
+
