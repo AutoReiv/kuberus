@@ -22,10 +22,13 @@ jobs:
 
     - name: Build and push
       uses: docker/build-push-action@v4
+      env:
+        REPO_OWNER: ${{ github.repository_owner }}
+        REPO_NAME: ${{ github.event.repository.name }}
       with:
         context: .
         push: true
-        tags: ghcr.io/${{ github.repository }}:latest
-
+        tags: ghcr.io/${REPO_OWNER,,}/${REPO_NAME,,}:latest 
+           
     - name: Image digest
       run: echo ${{ steps.docker_build.outputs.digest }}
