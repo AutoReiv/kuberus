@@ -18,48 +18,45 @@ K-RBAC is the ultimate tool for managing your Kubernetes cluster's security with
 ### Prerequisites
 
 - Docker installed on your machine
+- A valid kubeconfig file for your Kubernetes cluster
 
-### Installation
+### Installation and Running
 
 1. Pull the Docker image:
+
+   Option A: Docker Hub (easier, no login required)
+   ```bash
+   docker pull reiv/k-rbac:latest
+   ```
+
+   Option B: GitHub Container Registry
    ```bash
    docker pull ghcr.io/autoreiv/k-rbac:latest
    ```
 
 2. Run the application:
+
+   Using Docker Hub image:
    ```bash
-   docker run -p 80:80 ghcr.io/autoreiv/k-rbac:latest
+   docker run -v $HOME/.kube:/root/.kube -p 80:80 reiv/k-rbac
    ```
+
+   Using GitHub Container Registry image:
+   ```bash
+   docker run -v $HOME/.kube:/root/.kube -p 80:80 ghcr.io/autoreiv/k-rbac
+   ```
+
+   These commands assume your kubeconfig is in the default location (`$HOME/.kube/config`). If your kubeconfig is elsewhere, adjust the path accordingly.
 
 3. Access the application:
    Open your web browser and navigate to `http://localhost:80`
 
-## Configuration
-
-To connect K-RBAC to your Kubernetes cluster:
-
-- Ensure your kubeconfig file is located at `~/.kube/config`, or
-- Set the `KUBECONFIG` environment variable to point to your kubeconfig file.
-
-## Usage
-
-[Add a brief guide on how to use the main features of K-RBAC]
+Note: K-RBAC requires a valid kubeconfig to connect to your Kubernetes cluster. If there is no valid kubeconfig available, the container will stop.
 
 ## Contributing
 
-We welcome contributions! Please feel free to submit a Pull Request.
-
-[Add more details about the contribution process, coding standards, etc.]
-
-## Support
-
-[Add information about how users can get help or report issues]
+We welcome contributions! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgements
-
-[Add any acknowledgements, if applicable]
-
