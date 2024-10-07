@@ -88,9 +88,6 @@ const CreateRoleDialog = ({ onSubmit }) => {
     queryFn: () => apiClient.getNamespaces(),
   });
 
-
-  console.log(namespaces, 'namespaces')
-
   const { data: resources } = useQuery({
     queryKey: ["resources"],
     queryFn: () => apiClient.getResources(),
