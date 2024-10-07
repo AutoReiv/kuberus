@@ -38,4 +38,4 @@ COPY nginx.conf /etc/nginx/nginx.conf
 EXPOSE 80
 
 # Start the backend server, Next.js, and Nginx
-CMD ["sh", "-c", "/usr/bin/server & cd /app/frontend && npm start & nginx -g 'daemon off;'"]
+CMD ["sh", "-c", "if [ ! -f /root/.kube/config ]; then echo 'Kubeconfig not found. Exiting.' >&2; exit 1; else /usr/bin/server & cd /app/frontend && npm start & nginx -g 'daemon off;'; fi"]

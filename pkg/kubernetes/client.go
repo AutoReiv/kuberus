@@ -5,15 +5,27 @@ import (
 	"path/filepath"
 
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 )
 
 // NewClientset initializes and returns a Kubernetes clientset
 func NewClientset() (*kubernetes.Clientset, error) {
-	kubeconfig := filepath.Join(homeDir(), ".kube", "config")
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	// Try in-cluster config first
+	config, err := rest.InClusterConfig()
 	if err != nil {
-		return nil, err
+		// Fallback to kubeconfig
+		kubeconfig := os.Getenv("KUBECONFIG")
+		if kubeconfig == "" {
+			if home := homedir.HomeDir(); home != "" {
+				kubeconfig = filepath.Join(home, ".kube", "config")
+			}
+		}
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
@@ -22,12 +34,4 @@ func NewClientset() (*kubernetes.Clientset, error) {
 	}
 
 	return clientset, nil
-}
-
-// homeDir returns the home directory of the user
-func homeDir() string {
-	if h := os.Getenv("HOME"); h != "" {
-		return h
-	}
-	return os.Getenv("USERPROFILE")
 }
