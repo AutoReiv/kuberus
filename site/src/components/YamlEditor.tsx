@@ -185,7 +185,7 @@ const YamlEditor: React.FC<YamlEditorProps> = ({
             value={content}
             options={{
               readOnly: !isEditing,
-              minimap: { enabled: true },
+              minimap: { enabled: false },
               automaticLayout: true,
             }}
             onChange={(value) => setContent(value || "")}

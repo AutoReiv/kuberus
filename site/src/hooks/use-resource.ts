@@ -93,11 +93,9 @@ export function createResourceHooks<T>(resourceName: string) {
   const useDeleteResource = createMutationHook(
     "delete",
     (resources: string | T[]) => {
-      console.log("Deleting resource:", resources);
       if (Array.isArray(resources)) {
         return Promise.all(
           resources.map((resource: any) => {
-            console.log("Deleting resource:", resource);
             apiClient[`delete${resourceName}`](
               resource.metadata?.namespace ||
                 resource.namespace ||
@@ -107,7 +105,6 @@ export function createResourceHooks<T>(resourceName: string) {
           })
         );
       } else {
-        console.log("Deleting single resource:", resources);
         return apiClient[`delete${resourceName}`](
           (resources as any).metadata?.namespace ||
             (resources as any).namespace ||
