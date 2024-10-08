@@ -6,6 +6,7 @@ toolchain go1.23.0
 
 require (
 	github.com/labstack/echo/v4 v4.12.0
+	github.com/rs/cors v1.11.1
 	k8s.io/api v0.31.1
 	k8s.io/apimachinery v0.31.1
 	k8s.io/client-go v0.31.1

@@ -12,6 +12,7 @@ import (
 	"rbac/pkg/server"
 
 	"github.com/labstack/echo/v4"
+	"github.com/rs/cors"
 )
 
 func main() {
@@ -23,6 +24,14 @@ func main() {
 
 	// Create Echo instance
 	e := echo.New()
+
+	// CORS
+	e.Use(echo.WrapMiddleware(cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost", "http://localhost:3000"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+	}).Handler))
 
 	// Load server configuration
 	serverConfig := server.NewConfig()

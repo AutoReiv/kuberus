@@ -10,7 +10,6 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-// NewClientset initializes and returns a Kubernetes clientset
 func NewClientset() (*kubernetes.Clientset, error) {
 	// Try in-cluster config first
 	config, err := rest.InClusterConfig()

@@ -34,12 +34,12 @@ K-RBAC is the ultimate tool for managing your Kubernetes cluster's security with
 
    Using Docker Hub image:
    ```bash
-   docker run -v $HOME/.kube:/root/.kube -p 80:80 reiv/k-rbac
+   docker run -d -v $HOME/.kube:/root/.kube -p 80:80 reiv/k-rbac
    ```
 
    Using GitHub Container Registry image:
    ```bash
-   docker run -v $HOME/.kube:/root/.kube -p 80:80 ghcr.io/autoreiv/k-rbac
+   docker run -d -v $HOME/.kube:/root/.kube -p 80:80 ghcr.io/autoreiv/k-rbac
    ```
 
    These commands assume your kubeconfig is in the default location (`$HOME/.kube/config`). If your kubeconfig is elsewhere, adjust the path accordingly.
