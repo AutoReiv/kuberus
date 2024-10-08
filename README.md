@@ -1,46 +1,58 @@
-   # K-RBAC
+# K-RBAC: Simplify Your Kubernetes RBAC Management
 
-   **Transform Your Kubernetes Management with K-RBAC!**
+K-RBAC is the ultimate tool for managing your Kubernetes cluster's security with ease and precision. It offers an intuitive interface that simplifies the complex world of Kubernetes RBAC making it ideal for both seasoned Kubernetes admins and newcomers alike.
 
-   Dive into seamless Kubernetes Role-Based Access Control with K-RBAC, the ultimate tool for managing your cluster's security with ease and precision. Whether you're a seasoned Kubernetes admin or just starting out, K-RBAC offers an intuitive interface that simplifies the complex world of roles, bindings, and permissions.
+## Features
 
-   **Why Choose K-RBAC?**
+- **Simplified Authorization**: Streamline Kubernetes authorization with an intuitive interface.
+- **Effortless Management**: Easily navigate and manage users, groups, and namespaces.
+- **Comprehensive Control**: Create, update, and delete roles and bindings effortlessly.
+- **Secure and Scalable**: Built to handle the demands of modern Kubernetes environments.
 
-   - **Simplified Authorization**: Streamline Kubernetes authorization with an intuitive interface that makes managing roles and permissions straightforward.
-   - **Effortless Management**: Navigate and manage users, groups, and namespaces with just a few clicks.
-   - **Comprehensive Control**: Create, update, and delete roles and bindings without breaking a sweat.
-   - **Secure and Scalable**: Built to handle the demands of modern Kubernetes environments.
+## Getting Started
 
-   ## Getting Started
+### Prerequisites
 
-   To get started with K-RBAC, follow these simple steps:
+- Docker installed on your machine
+- A valid kubeconfig file for your Kubernetes cluster
 
-   ### Prerequisites
+### Installation and Running
 
-   - Ensure Docker is installed on your machine.
+1. Pull the Docker image:
 
-   ### Running the Application
+   Option A: Docker Hub (easier, no login required)
+   ```bash
+   docker pull reiv/k-rbac:latest
+   ```
 
-   1. **Pull the Docker Image**:
-      ```bash
-      docker pull ghcr.io/autoreiv/k-rbac:latest
+   Option B: GitHub Container Registry
+   ```bash
+   docker pull ghcr.io/autoreiv/k-rbac:latest
+   ```
 
-   2.  **Pull the Docker Image**:
-      ```bash
-      docker run -p 80:80 ghcr.io/autoreiv/k-rbac:latest
+2. Run the application:
 
-   3. **Access the Application**: 
-      Open your web browser and navigate to http://localhost:80
+   Using Docker Hub image:
+   ```bash
+   docker run -v $HOME/.kube:/root/.kube -p 80:80 reiv/k-rbac
+   ```
 
-   ### Configuration
-   
-   To connect K-RBAC to your Kubernetes cluster, ensure your kubeconfig file is located at ~/.kube/config or set the KUBECONFIG environment variable to point to your kubeconfig file.
+   Using GitHub Container Registry image:
+   ```bash
+   docker run -v $HOME/.kube:/root/.kube -p 80:80 ghcr.io/autoreiv/k-rbac
+   ```
 
-   ### Contributing
-   
-   We welcome contributions! Please feel free to submit a Pull Request.
+   These commands assume your kubeconfig is in the default location (`$HOME/.kube/config`). If your kubeconfig is elsewhere, adjust the path accordingly.
 
-   ### License
+3. Access the application:
+   Open your web browser and navigate to `http://localhost:80`
 
-   This project is licensed under the MIT License - see the LICENSE file for details.
+Note: K-RBAC requires a valid kubeconfig to connect to your Kubernetes cluster. If there is no valid kubeconfig available, the container will stop.
 
+## Contributing
+
+We welcome contributions! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
