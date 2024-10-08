@@ -1,10 +1,6 @@
-# K-RBAC
+# K-RBAC: Simplify Your Kubernetes RBAC Management
 
-Transform Your Kubernetes Management with K-RBAC!
-
-## Overview
-
-K-RBAC is the ultimate tool for managing your Kubernetes cluster's security with ease and precision. It offers an intuitive interface that simplifies the complex world of roles, bindings, and permissions, making it ideal for both seasoned Kubernetes admins and newcomers alike.
+K-RBAC is the ultimate tool for managing your Kubernetes cluster's security with ease and precision. It offers an intuitive interface that simplifies the complex world of Kubernetes RBAC making it ideal for both seasoned Kubernetes admins and newcomers alike.
 
 ## Features
 
