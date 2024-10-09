@@ -1,6 +1,6 @@
 import { ENDPOINTS } from "./endpoints";
 
-const API_BASE_URL = "http://localhost";
+const API_BASE_URL = "http://localhost:8080";
 
 /**
  * ApiClient class for handling API requests
