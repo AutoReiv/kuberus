@@ -6,6 +6,9 @@ WORKDIR /app/frontend
 COPY site/package*.json ./
 RUN npm install
 
+# Set environment variables
+ENV NEXT_PUBLIC_API_URL=
+
 COPY site/ .
 RUN npm run build
 
@@ -35,6 +38,7 @@ COPY --from=frontend-builder /app/frontend/package.json /app/frontend/package.js
 # Copy the Nginx configuration file
 COPY nginx.conf /etc/nginx/nginx.conf
 
+# Expose port 80 for Nginx
 EXPOSE 80
 
 # Start the backend server, Next.js, and Nginx
