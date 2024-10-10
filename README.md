@@ -1,6 +1,6 @@
-# K-RBAC: Simplify Your Kubernetes RBAC Management
+# Kubeberus: Simplify Your Kubernetes RBAC Management
 
-K-RBAC is the ultimate tool for managing your Kubernetes cluster's security with ease and precision. It offers an intuitive interface that simplifies the complex world of Kubernetes RBAC making it ideal for both seasoned Kubernetes admins and newcomers alike.
+Kubeberus is the ultimate tool for managing your Kubernetes cluster's security with ease and precision. It offers an intuitive interface that simplifies the complex world of Kubernetes RBAC making it ideal for both seasoned Kubernetes admins and newcomers alike.
 
 ## Features
 
@@ -22,24 +22,24 @@ K-RBAC is the ultimate tool for managing your Kubernetes cluster's security with
 
    Option A: Docker Hub (easier, no login required)
    ```bash
-   docker pull reiv/k-rbac:latest
+   docker pull reiv/kubeberus:latest
    ```
 
    Option B: GitHub Container Registry
    ```bash
-   docker pull ghcr.io/autoreiv/k-rbac:latest
+   docker pull ghcr.io/autoreiv/kubeberus:latest
    ```
 
 2. Run the application:
 
    Using Docker Hub image:
    ```bash
-   docker run -d -v $HOME/.kube:/root/.kube -p 80:80 reiv/k-rbac
+   docker run -d -v $HOME/.kube:/root/.kube -p 80:80 reiv/kubeberus
    ```
 
    Using GitHub Container Registry image:
    ```bash
-   docker run -d -v $HOME/.kube:/root/.kube -p 80:80 ghcr.io/autoreiv/k-rbac
+   docker run -d -v $HOME/.kube:/root/.kube -p 80:80 ghcr.io/autoreiv/kubeberus
    ```
 
    These commands assume your kubeconfig is in the default location (`$HOME/.kube/config`). If your kubeconfig is elsewhere, adjust the path accordingly.
@@ -47,7 +47,7 @@ K-RBAC is the ultimate tool for managing your Kubernetes cluster's security with
 3. Access the application:
    Open your web browser and navigate to `http://localhost:80`
 
-Note: K-RBAC requires a valid kubeconfig to connect to your Kubernetes cluster. If there is no valid kubeconfig available, the container will stop.
+Note: Kubeberus requires a valid kubeconfig to connect to your Kubernetes cluster. If there is no valid kubeconfig available, the container will stop.
 
 ## Contributing
 

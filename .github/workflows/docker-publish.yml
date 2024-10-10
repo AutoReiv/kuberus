@@ -32,7 +32,7 @@ jobs:
       with:
         images: |
           ghcr.io/${{ github.repository }}
-          ${{ secrets.DOCKERHUB_USERNAME }}/k-rbac
+          ${{ secrets.DOCKERHUB_USERNAME }}/kubeberus
         tags: |
           type=raw,value=latest
 
