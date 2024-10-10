@@ -1,8 +1,8 @@
 import { ENDPOINTS } from "./endpoints";
 
-const API_BASE_URL = typeof window !== 'undefined' 
-  ? `${window.location.origin}`
-  : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_BASE_URL = process.env.NODE_ENV === 'development'
+  ? 'http://localhost:8080'
+  : `${typeof window !== 'undefined' ? window.location.origin : ''}`;
 
 /**
  * ApiClient class for handling API requests
