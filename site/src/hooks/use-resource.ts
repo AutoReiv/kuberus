@@ -81,6 +81,7 @@ export function createResourceHooks<T>(resourceName: string) {
             !error,
             error || data
           );
+          queryClient.refetchQueries({ queryKey: [resourceName] });
         },
       });
     };

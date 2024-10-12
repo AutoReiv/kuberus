@@ -26,6 +26,8 @@ import { cn } from "@/lib/utils";
 import CreateRoleDialog from "./_components/CreateRoleDialog";
 import yaml from "js-yaml";
 import { useCreateRole, useDeleteRoles, useRoles } from "@/hooks/useRoles";
+import { ActionsDropdown } from "@/components/ActionsDropdown";
+import { DeletionConfirmationDialog } from "@/components/DeletionConfirmationDialog";
 
 const dnsNameRegex =
   /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/;
@@ -63,6 +65,11 @@ const roleSchema = z
 const Roles = () => {
   const router = useRouter();
   const [isCreateRoleDialogOpen, setIsCreateRoleDialogOpen] = useState(false);
+  const [deletionDialog, setDeletionDialog] = useState<{
+    isOpen: boolean;
+    role: Role | null;
+  }>({ isOpen: false, role: null });
+
   const initialData = `apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -173,6 +180,26 @@ rules:
         return format(new Date(timestamp), "MM/dd - hh:mm:ss a");
       },
     },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const role = row.original;
+        const actions = [
+          {
+            label: "View Details",
+            icon: <Eye className="mr-2 h-4 w-4" />,
+            onClick: () =>
+              routeToDetails(role.metadata.namespace, role.metadata.name),
+          },
+          {
+            label: "Delete",
+            icon: <Trash className="mr-2 h-4 w-4" />,
+            onClick: () => setDeletionDialog({ isOpen: true, role }),
+          },
+        ];
+        return <ActionsDropdown actions={actions} />;
+      },
+    },
   ];
 
   const handleCreateRoleFromYaml = (content: string) => {
@@ -216,6 +243,13 @@ rules:
 
   const handleDeleteRole = (row: Role[]) => {
     deleteRolesMutation.mutate(row);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deletionDialog.role) {
+      handleDeleteRole([deletionDialog.role]);
+      setDeletionDialog({ isOpen: false, role: null });
+    }
   };
 
   const routeToDetails = (namespace: string, name: string) => {
@@ -274,24 +308,6 @@ rules:
           columns={columns}
           enableGridView={false}
           enableRowSelection={true}
-          rowActions={(row) => [
-            <Trash
-              key="delete"
-              size={20}
-              onClick={() => handleDeleteRole([row])}
-            >
-              Delete
-            </Trash>,
-            <Eye
-              key="view"
-              onClick={() =>
-                routeToDetails(row.metadata.namespace, row.metadata.name)
-              }
-              size={20}
-            >
-              View Details
-            </Eye>,
-          ]}
           bulkActions={(selectedRows) => [
             <Button
               key="delete"
@@ -301,8 +317,15 @@ rules:
               Delete Selected Roles
             </Button>,
           ]}
-        ></GenericDataTable>
+        />
       )}
+      <DeletionConfirmationDialog
+        isOpen={deletionDialog.isOpen}
+        onClose={() => setDeletionDialog({ isOpen: false, role: null })}
+        onConfirm={handleDeleteConfirm}
+        itemName={deletionDialog.role?.metadata.name || ""}
+        itemType="Role"
+      />
     </motion.div>
   );
 };
