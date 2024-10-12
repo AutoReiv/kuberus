@@ -78,6 +78,7 @@ interface GenericDataTableProps<T> {
   className?: string;
   enableQuickActions?: boolean;
   quickActions?;
+  actionButton?: React.ReactNode;
 }
 
 function GenericDataTable<T>({
@@ -104,6 +105,7 @@ function GenericDataTable<T>({
   className,
   enableQuickActions = false,
   quickActions,
+  actionButton,
 }: GenericDataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -125,10 +127,13 @@ function GenericDataTable<T>({
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    globalFilterFn: useCallback((row, columnId, filterValue) => {
-      const value = row.getValue(columnId);
-      return String(value).toLowerCase().includes(filterValue.toLowerCase());
-    }, []),
+    globalFilterFn: (row, columnId, filterValue) => {
+      const getValue = (row: any) => row.getValue(columnId);
+      const value = getValue(row);
+      return typeof value === "string"
+        ? value.toLowerCase().includes(filterValue.toLowerCase())
+        : String(value).toLowerCase().includes(filterValue.toLowerCase());
+    },
     state: {
       sorting,
       columnFilters,
@@ -136,6 +141,7 @@ function GenericDataTable<T>({
       rowSelection,
       globalFilter,
     },
+    onGlobalFilterChange: setGlobalFilter,
   });
 
   const [sentryRef] = useInfiniteScroll({
@@ -300,14 +306,19 @@ function GenericDataTable<T>({
   return (
     <Card className={className}>
       <CardHeader className={title ? "inherit" : "py-1"}>
-        <CardTitle>{title}</CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col space-x-2">
+            <CardTitle>{title}</CardTitle>
+            {description && <CardDescription>{description}</CardDescription>}
+          </div>
+          {actionButton}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between py-4">
           <Input
             placeholder="Global search..."
-            value={globalFilter}
+            value={globalFilter ?? ""}
             onChange={(e) => setGlobalFilter(e.target.value)}
             className="max-w-sm"
           />
@@ -571,7 +582,6 @@ function GenericDataTable<T>({
             >
               Last
             </Button>
-
             <Input
               type="number"
               defaultValue={table.getState().pagination.pageIndex + 1}

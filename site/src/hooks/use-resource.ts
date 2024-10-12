@@ -49,10 +49,10 @@ const handleMutationResult = (
 };
 
 export function createResourceHooks<T>(resourceName: string) {
-  const useResourceList = () => {
+  const useResourceList = (namespace?: string, name?: string) => {
     return useQuery({
       queryKey: [resourceName],
-      queryFn: () => apiClient[`get${resourceName}`](),
+      queryFn: () => apiClient[`get${resourceName}`](namespace, name),
     });
   };
 
