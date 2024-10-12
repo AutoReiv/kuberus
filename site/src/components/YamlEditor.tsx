@@ -18,12 +18,26 @@ interface YamlEditorProps {
   initialContent: string;
   onSave?: (content: string) => void;
   readOnly?: boolean;
+  enableEdit?: boolean;
+  enableSave?: boolean;
+  enableReset?: boolean;
+  enableFormat?: boolean;
+  enableCopy?: boolean;
+  enableDiff?: boolean;
+  enableExport?: boolean;
 }
 
 const YamlEditor: React.FC<YamlEditorProps> = ({
   initialContent,
   onSave,
   readOnly = false,
+  enableEdit = true,
+  enableSave = true,
+  enableReset = true,
+  enableFormat = true,
+  enableCopy = true,
+  enableDiff = true,
+  enableExport = true,
 }) => {
   const [content, setContent] = useState(initialContent);
   const [isEditing, setIsEditing] = useState(!readOnly);
@@ -96,7 +110,7 @@ const YamlEditor: React.FC<YamlEditorProps> = ({
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-lg font-semibold">YAML Editor</h3>
         <div>
-          {!isEditing && !readOnly && (
+          {!isEditing && !readOnly && enableEdit && (
             <Button
               onClick={handleEdit}
               variant="outline"
@@ -109,62 +123,74 @@ const YamlEditor: React.FC<YamlEditorProps> = ({
           )}
           {isEditing && (
             <>
-              <Button
-                onClick={handleSave}
-                variant="outline"
-                size="sm"
-                className="mr-2"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                Save
-              </Button>
-              <Button
-                onClick={handleReset}
-                variant="outline"
-                size="sm"
-                className="mr-2"
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset
-              </Button>
-              <Button
-                onClick={formatYaml}
-                variant="outline"
-                size="sm"
-                className="mr-2"
-              >
-                <FileSymlink className="h-4 w-4 mr-2" />
-                Format
-              </Button>
+              {enableSave && (
+                <Button
+                  onClick={handleSave}
+                  variant="outline"
+                  size="sm"
+                  className="mr-2"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Save
+                </Button>
+              )}
+              {enableReset && (
+                <Button
+                  onClick={handleReset}
+                  variant="outline"
+                  size="sm"
+                  className="mr-2"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset
+                </Button>
+              )}
+              {enableFormat && (
+                <Button
+                  onClick={formatYaml}
+                  variant="outline"
+                  size="sm"
+                  className="mr-2"
+                >
+                  <FileSymlink className="h-4 w-4 mr-2" />
+                  Format
+                </Button>
+              )}
             </>
           )}
-          <Button
-            onClick={copyToClipboard}
-            variant="outline"
-            size="sm"
-            className="mr-2"
-          >
-            <Copy className="h-4 w-4 mr-2" />
-            Copy
-          </Button>
-          <Button
-            onClick={toggleDiffView}
-            variant="outline"
-            size="sm"
-            className="mr-2"
-          >
-            <SplitSquareHorizontal className="h-4 w-4 mr-2" />
-            {showDiff ? "Hide Diff" : "Show Diff"}
-          </Button>
-          <Button
-            onClick={exportYaml}
-            variant="outline"
-            size="sm"
-            className="mr-2"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+          {enableCopy && (
+            <Button
+              onClick={copyToClipboard}
+              variant="outline"
+              size="sm"
+              className="mr-2"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy
+            </Button>
+          )}
+          {enableDiff && (
+            <Button
+              onClick={toggleDiffView}
+              variant="outline"
+              size="sm"
+              className="mr-2"
+            >
+              <SplitSquareHorizontal className="h-4 w-4 mr-2" />
+              {showDiff ? "Hide Diff" : "Show Diff"}
+            </Button>
+          )}
+          {enableExport && (
+            <Button
+              onClick={exportYaml}
+              variant="outline"
+              size="sm"
+              className="mr-2"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+          )}
         </div>
       </div>
       <div className="flex">

@@ -16,10 +16,18 @@ import {
 } from "@/hooks/useClusterRoleBinding";
 import { ClusterRoleBinding } from "@/interfaces/clusterRoleBinding";
 import CreateClusterRoleBindingsDialog from "./_components/CreateClusterRoleBindingsDialog";
+import { ActionsDropdown } from "@/components/ActionsDropdown";
+import { DeletionConfirmationDialog } from "@/components/DeletionConfirmationDialog";
 
 const ClusterRoleBindings = () => {
   const router = useRouter();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [deletionDialog, setDeletionDialog] = useState<{
+    isOpen: boolean;
+    itemName: string;
+    itemType: string;
+  }>({ isOpen: false, itemName: "", itemType: "" });
+
   const {
     data: clusterRoleBindings,
     isPending: isPendingRoles,
@@ -71,12 +79,39 @@ const ClusterRoleBindings = () => {
         </div>
       ),
     },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const role = row.original;
+        const actions = [
+          {
+            label: "View Details",
+            icon: <Eye className="mr-2 h-4 w-4" />,
+            onClick: () => routeToDetails(role.metadata.name),
+          },
+          {
+            label: "Delete",
+            icon: <Trash className="mr-2 h-4 w-4" />,
+            onClick: () => handleDeleteClusterRoleBinding(role),
+          },
+        ];
+        return <ActionsDropdown actions={actions} />;
+      },
+    },
   ];
 
-  const handleDeleteClusterRoleBinding = async (row: ClusterRoleBinding) => {
-    await deleteClusterRoleBindingMutation.mutate(row.metadata.name);
+  const handleDeleteClusterRoleBinding = (row: ClusterRoleBinding) => {
+    setDeletionDialog({
+      isOpen: true,
+      itemName: row.metadata.name,
+      itemType: "Cluster Role Binding",
+    });
   };
 
+  const confirmDelete = async () => {
+    await deleteClusterRoleBindingMutation.mutate(deletionDialog.itemName);
+    setDeletionDialog({ isOpen: false, itemName: "", itemType: "" });
+  };
   const routeToDetails = (name: string) => {
     router.push(`/dashboard/cluster-role-bindings/${name}`);
   };
@@ -113,24 +148,15 @@ const ClusterRoleBindings = () => {
           data={clusterRoleBindings.items}
           columns={columns}
           enableGridView={false}
-          rowActions={(row) => [
-            <Trash
-              key="delete"
-              size={20}
-              onClick={() => handleDeleteClusterRoleBinding(row)}
-            >
-              Delete
-            </Trash>,
-            <Eye
-              key="view"
-              onClick={() => routeToDetails(row.metadata.name)}
-              size={20}
-            >
-              View Details
-            </Eye>,
-          ]}
-        ></GenericDataTable>
+        />
       )}
+      <DeletionConfirmationDialog
+        isOpen={deletionDialog.isOpen}
+        onClose={() => setDeletionDialog({ ...deletionDialog, isOpen: false })}
+        onConfirm={confirmDelete}
+        itemName={deletionDialog.itemName}
+        itemType={deletionDialog.itemType}
+      />
     </motion.div>
   );
 };

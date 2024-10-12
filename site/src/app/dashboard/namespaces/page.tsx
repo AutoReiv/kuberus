@@ -21,6 +21,8 @@ import {
   useNamespaces,
 } from "@/hooks/useNamespace";
 import { Namespace } from "@/interfaces/namespace";
+import { ActionsDropdown } from "@/components/ActionsDropdown";
+import { DeletionConfirmationDialog } from "@/components/DeletionConfirmationDialog";
 
 const namespaceFormSchema = z.object({
   namespace: z.string().min(1, "Namespace is required"),
@@ -30,6 +32,9 @@ type NamespaceFormData = z.infer<typeof namespaceFormSchema>;
 const Namespaces = () => {
   const router = useRouter();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [deletingNamespace, setDeletingNamespace] = useState<Namespace | null>(
+    null
+  );
   const { data: namespaces, isLoading, error } = useNamespaces();
   const createNamespace = useCreateNamespace({
     onSuccess: () => {
@@ -50,6 +55,25 @@ const Namespaces = () => {
       accessorKey: "metadata.creationTimestamp",
       header: "Created At",
     },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const namespace = row.original;
+        const actions = [
+          {
+            label: "View Details",
+            icon: <Eye className="mr-2 h-4 w-4" />,
+            onClick: () => routeToDetails(namespace),
+          },
+          {
+            label: "Delete",
+            icon: <Trash className="mr-2 h-4 w-4" />,
+            onClick: () => onDelete(namespace),
+          },
+        ];
+        return <ActionsDropdown actions={actions} />;
+      },
+    },
   ];
 
   const {
@@ -65,7 +89,17 @@ const Namespaces = () => {
   };
 
   const onDelete = (row: Namespace) => {
-    deleteNamespace.mutate(row);
+    setDeletingNamespace(row);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deletingNamespace) {
+      deleteNamespace.mutate(deletingNamespace, {
+        onSuccess: () => {
+          setDeletingNamespace(null);
+        },
+      });
+    }
   };
 
   const routeToDetails = (row: Namespace) => {
@@ -113,14 +147,13 @@ const Namespaces = () => {
         columns={columns}
         data={namespaces.items}
         enableGridView={false}
-        rowActions={(row) => [
-          <Trash key="delete" size={20} onClick={() => onDelete(row)}>
-            Delete
-          </Trash>,
-          <Eye key="view" size={20} onClick={() => routeToDetails(row)}>
-            View Details
-          </Eye>,
-        ]}
+      />
+      <DeletionConfirmationDialog
+        isOpen={!!deletingNamespace}
+        onClose={() => setDeletingNamespace(null)}
+        onConfirm={handleDeleteConfirm}
+        itemName={deletingNamespace?.metadata.name || ""}
+        itemType="namespace"
       />
     </motion.div>
   );

@@ -39,7 +39,14 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import useInfiniteScroll from "react-infinite-scroll-hook";
 import { CSVLink } from "react-csv";
-import { Dot, DotSquare, Grid, MoreHorizontal, TableIcon } from "lucide-react";
+import {
+  ChevronDown,
+  Dot,
+  DotSquare,
+  Grid,
+  MoreHorizontal,
+  TableIcon,
+} from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -71,6 +78,7 @@ interface GenericDataTableProps<T> {
   className?: string;
   enableQuickActions?: boolean;
   quickActions?;
+  actionButton?: React.ReactNode;
 }
 
 function GenericDataTable<T>({
@@ -97,6 +105,7 @@ function GenericDataTable<T>({
   className,
   enableQuickActions = false,
   quickActions,
+  actionButton,
 }: GenericDataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -118,10 +127,13 @@ function GenericDataTable<T>({
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    globalFilterFn: useCallback((row, columnId, filterValue) => {
-      const value = row.getValue(columnId);
-      return String(value).toLowerCase().includes(filterValue.toLowerCase());
-    }, []),
+    globalFilterFn: (row, columnId, filterValue) => {
+      const getValue = (row: any) => row.getValue(columnId);
+      const value = getValue(row);
+      return typeof value === "string"
+        ? value.toLowerCase().includes(filterValue.toLowerCase())
+        : String(value).toLowerCase().includes(filterValue.toLowerCase());
+    },
     state: {
       sorting,
       columnFilters,
@@ -129,6 +141,7 @@ function GenericDataTable<T>({
       rowSelection,
       globalFilter,
     },
+    onGlobalFilterChange: setGlobalFilter,
   });
 
   const [sentryRef] = useInfiniteScroll({
@@ -293,14 +306,19 @@ function GenericDataTable<T>({
   return (
     <Card className={className}>
       <CardHeader className={title ? "inherit" : "py-1"}>
-        <CardTitle>{title}</CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col space-x-2">
+            <CardTitle>{title}</CardTitle>
+            {description && <CardDescription>{description}</CardDescription>}
+          </div>
+          {actionButton}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between py-4">
           <Input
             placeholder="Global search..."
-            value={globalFilter}
+            value={globalFilter ?? ""}
             onChange={(e) => setGlobalFilter(e.target.value)}
             className="max-w-sm"
           />
@@ -494,11 +512,48 @@ function GenericDataTable<T>({
       </CardContent>
       {enablePagination && !infiniteScroll && table.getPageCount() > 1 && (
         <CardFooter className="flex items-center justify-between py-4">
-          <div className="text-sm text-muted-foreground">
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount()}
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-muted-foreground">
+              Showing{" "}
+              {table.getState().pagination.pageIndex *
+                table.getState().pagination.pageSize +
+                1}{" "}
+              to{" "}
+              {Math.min(
+                (table.getState().pagination.pageIndex + 1) *
+                  table.getState().pagination.pageSize,
+                table.getFilteredRowModel().rows.length
+              )}{" "}
+              of {table.getFilteredRowModel().rows.length} entries
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  Show {table.getState().pagination.pageSize}
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {[10, 20, 30, 40, 50].map((pageSize) => (
+                  <DropdownMenuItem
+                    key={pageSize}
+                    onSelect={() => table.setPageSize(pageSize)}
+                  >
+                    Show {pageSize}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+            >
+              First
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -507,6 +562,10 @@ function GenericDataTable<T>({
             >
               Previous
             </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {table.getState().pagination.pageIndex + 1} of{" "}
+              {table.getPageCount()}
+            </span>
             <Button
               variant="outline"
               size="sm"
@@ -515,6 +574,23 @@ function GenericDataTable<T>({
             >
               Next
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+            >
+              Last
+            </Button>
+            <Input
+              type="number"
+              defaultValue={table.getState().pagination.pageIndex + 1}
+              onChange={(e) => {
+                const page = e.target.value ? Number(e.target.value) - 1 : 0;
+                table.setPageIndex(page);
+              }}
+              className="w-16"
+            />
           </div>
         </CardFooter>
       )}
