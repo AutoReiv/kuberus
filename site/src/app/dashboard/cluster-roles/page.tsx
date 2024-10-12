@@ -15,10 +15,20 @@ import {
 } from "@/hooks/useClusterRoles";
 import CreateClusterRoleDialog from "./_components/CreateClusterRoleDialog";
 import { ClusterRole } from "@/interfaces/clusterRole";
+import { ActionsDropdown } from "@/components/ActionsDropdown";
+import { DeletionConfirmationDialog } from "@/components/DeletionConfirmationDialog";
 
 const ClusterRoles = () => {
   const router = useRouter();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
+  const [deletionDialog, setDeletionDialog] = React.useState<{
+    isOpen: boolean;
+    role: ClusterRole | null;
+  }>({
+    isOpen: false,
+    role: null,
+  });
+
   const { data: clusterRoles, isLoading, isError } = useClusterRoles();
   const deleteClusterRoleMutation = useDeleteClusterRoles();
 
@@ -48,12 +58,36 @@ const ClusterRoles = () => {
         return <span>{rules.length} rule(s)</span>;
       },
     },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const role = row.original;
+        const actions = [
+          {
+            label: "View Details",
+            icon: <Eye className="mr-2 h-4 w-4" />,
+            onClick: () => routeToDetails(role.metadata.name),
+          },
+          {
+            label: "Delete",
+            icon: <Trash className="mr-2 h-4 w-4" />,
+            onClick: () => handleDeleteRole(role),
+          },
+        ];
+        return <ActionsDropdown actions={actions} />;
+      },
+    },
   ];
 
-  const handleDeleteRole = (selectedRows: ClusterRole[]) => {
-    selectedRows.forEach((row) => {
-      deleteClusterRoleMutation.mutate(row);
-    });
+  const handleDeleteRole = (role: ClusterRole) => {
+    setDeletionDialog({ isOpen: true, role });
+  };
+
+  const confirmDelete = () => {
+    if (deletionDialog.role) {
+      deleteClusterRoleMutation.mutate(deletionDialog.role);
+    }
+    setDeletionDialog({ isOpen: false, role: null });
   };
 
   const routeToDetails = (name: string) => {
@@ -89,34 +123,25 @@ const ClusterRoles = () => {
           data={clusterRoles.items}
           columns={columns}
           enableGridView={false}
-          rowActions={(row) => [
-            <Trash
-              key="delete"
-              size={20}
-              onClick={() => handleDeleteRole([row])}
-            >
-              Delete
-            </Trash>,
-            <Eye
-              key="view"
-              onClick={() => routeToDetails(row.metadata.name)}
-              size={20}
-            >
-              View Details
-            </Eye>,
-          ]}
           enableRowSelection={true}
           bulkActions={(selectedRows) => [
             <Button
               key="delete"
-              onClick={() => handleDeleteRole(selectedRows)}
+              onClick={() => handleDeleteRole(selectedRows[0])}
               variant="destructive"
             >
-              Delete Selected Cluster Roles
+              Delete Selected Cluster Role
             </Button>,
           ]}
         ></GenericDataTable>
       )}
+      <DeletionConfirmationDialog
+        isOpen={deletionDialog.isOpen}
+        onClose={() => setDeletionDialog({ isOpen: false, role: null })}
+        onConfirm={confirmDelete}
+        itemName={deletionDialog.role?.metadata.name || ""}
+        itemType="Cluster Role"
+      />
     </motion.div>
   );
 };

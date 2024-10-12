@@ -14,11 +14,18 @@ import { toast } from "sonner";
 import { useDeleteRoleBinding, useRoleBindings } from "@/hooks/useRoleBindings";
 import { RoleBinding } from "@/interfaces/roleBinding";
 import CreateRoleBindingsDialog from "./_components/CreateRoleBindingsDialog";
+import { ActionsDropdown } from "@/components/ActionsDropdown";
+import { DeletionConfirmationDialog } from "@/components/DeletionConfirmationDialog";
 
 const RoleBindings = () => {
   const router = useRouter();
   const [isCreateRoleBindingDialogOpen, setIsCreateRoleBindingDialogOpen] =
     React.useState(false);
+  const [deletionDialog, setDeletionDialog] = React.useState<{
+    isOpen: boolean;
+    roleBinding: RoleBinding | null;
+  }>({ isOpen: false, roleBinding: null });
+
   const { data: roleBindings, isLoading } = useRoleBindings();
   const deleteRoleBindingMutation = useDeleteRoleBinding();
 
@@ -88,6 +95,25 @@ const RoleBindings = () => {
         ).toLocaleString();
       },
     },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const role = row.original;
+        const actions = [
+          {
+            label: "View Details",
+            icon: <Eye className="mr-2 h-4 w-4" />,
+            onClick: () => routeToDetails(role),
+          },
+          {
+            label: "Delete",
+            icon: <Trash className="mr-2 h-4 w-4" />,
+            onClick: () => onDelete(role),
+          },
+        ];
+        return <ActionsDropdown actions={actions} />;
+      },
+    },
   ];
 
   const routeToDetails = (roleBinding: RoleBinding) => {
@@ -99,11 +125,18 @@ const RoleBindings = () => {
     );
   };
 
-  const onDelete = async (roleBinding: RoleBinding) => {
-    await deleteRoleBindingMutation.mutateAsync({
-      namespace: roleBinding.metadata.namespace,
-      name: roleBinding.metadata.name,
-    });
+  const onDelete = (roleBinding: RoleBinding) => {
+    setDeletionDialog({ isOpen: true, roleBinding });
+  };
+
+  const confirmDelete = async () => {
+    if (deletionDialog.roleBinding) {
+      await deleteRoleBindingMutation.mutateAsync({
+        namespace: deletionDialog.roleBinding.metadata.namespace,
+        name: deletionDialog.roleBinding.metadata.name,
+      });
+      setDeletionDialog({ isOpen: false, roleBinding: null });
+    }
   };
 
   return (
@@ -132,16 +165,15 @@ const RoleBindings = () => {
           data={roleBindings.items}
           columns={columns}
           enableGridView={false}
-          rowActions={(row) => [
-            <Trash key="delete" size={20} onClick={() => onDelete(row)}>
-              Delete
-            </Trash>,
-            <Eye key="view" size={20} onClick={() => routeToDetails(row)}>
-              View Details
-            </Eye>,
-          ]}
-        ></GenericDataTable>
+        />
       )}
+      <DeletionConfirmationDialog
+        isOpen={deletionDialog.isOpen}
+        onClose={() => setDeletionDialog({ isOpen: false, roleBinding: null })}
+        onConfirm={confirmDelete}
+        itemName={deletionDialog.roleBinding?.metadata.name || ""}
+        itemType="Role Binding"
+      />
     </motion.div>
   );
 };

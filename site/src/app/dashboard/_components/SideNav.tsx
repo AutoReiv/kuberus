@@ -98,7 +98,7 @@ const SideNav = ({ onExpand }: { onExpand: (expanded: boolean) => void }) => {
                   exit={{ opacity: 0, width: 0 }}
                   transition={{ duration: 0.2 }}
                 >
-                  Phasing.
+                  Kuberus.
                 </motion.span>
               )}
             </AnimatePresence>
